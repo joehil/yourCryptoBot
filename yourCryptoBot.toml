@@ -1,27 +1,23 @@
 # do a trace (get more output to log), true or false
-do_trace = false
+do_trace = true
 
 # file that you write your log to
-own_log = "/var/log/autowebbackup.log"
+own_log = "/var/log/yourCryptoBot.log"
 
-# location of tar command
-tarcmd = "/bin/tar"
+# location of gctcli command
+gctcmd = "/home/pi/git/gocryptotrader/cmd/gctcli/gctcli"
+gctuser = "admin"
+gctpassword = "Password"
 
-# list of directories you want to backup
-dirs = [
-  "<dir1>",
-  "<dir2>
+# list of exchanges
+exchanges = [
+  "binance"
 ]
-# directories where you want to store your backups on the ftp server
-dailydir = "Daily"
-weeklydir = "Weekly"
-monthlydir = "Monthly"
 
-# directory on your local server where temporary tar files are stored
-tempdir = "/tmp"
-
-# number of days to keep daily, weekly and monthly backups
-dailykeep = 10
-weeklykeep = 100
-monthlykeep = 400
-
+# list of pairs
+pairs = [
+  "BNB-EUR",
+  "XLM-EUR",
+  "GRT-EUR",
+  "WRX-EUR"
+]

@@ -32,16 +32,23 @@ import (
 //	"strings"
 //    	"path"
 //    	"path/filepath"
-//    	"sync/atomic" 
+//    	"sync/atomic"
+//	"encoding/json" 
 	"github.com/spf13/viper"
 	"github.com/natefinch/lumberjack"
 )
+
+type candle struct {
+    exchange string
+    Body string
+    Time int64
+}
 
 var do_trace bool = true
 
 var ownlog string
 
-var dirs []string
+var pairs []string
 
 var gctcmd string
 
@@ -52,8 +59,13 @@ var ownlogger io.Writer
 
 func main() {
 // Set location of config 
+	dirname, err := os.UserHomeDir()
+    	if err != nil {
+        	log.Fatal( err )
+    	}
+
 	viper.SetConfigName("yourCryptoBot") // name of config file (without extension)
-	viper.AddConfigPath("~/.yourCryptoBot/")   // path to look for the config file in
+	viper.AddConfigPath(dirname+"/.yourCryptoBot/")   // path to look for the config file in
 
 // Read config
 	read_config()
@@ -74,22 +86,32 @@ func main() {
 }
 
 func cron() {
-	cmd := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getinfo")
-	err := cmd.Run()
-	if err != nil {
-		fmt.Printf("Command finished with error: %v", err)
+	for i, v := range pairs {
+		log.Printf("Index: %d, Value: %v\n", i, v )
+		out:=getPair(v,"2021-06-13 16:00:00","2021-06-13 16:15:00")
+		fmt.Print(string(out))
 	}
+}
+
+func getPair(p string, s string, e string) []byte {
+        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "gethistoriccandlesextended",
+        "-e","binance","-a","SPOT","-p",p,"-i","900",
+        "--start",s,"--end",e).Output()
+        if err != nil {
+                fmt.Printf("Command finished with error: %v", err)
+        }
+	return out
 }
 
 func read_config() {
         err := viper.ReadInConfig() // Find and read the config file
         if err != nil { // Handle errors reading the config file
-                log.Fatalf("Config file not found: %v", err)
+                log.Printf("Config file not found: %v", err)
         }
 
         ownlog = viper.GetString("own_log")
         if ownlog =="" { // Handle errors reading the config file
-                log.Fatalf("Filename for ownlog unknown: %v", err)
+                fmt.Printf("Filename for ownlog unknown: %v", err)
         }
 // Open log file
         ownlogger = &lumberjack.Logger{
@@ -99,10 +121,10 @@ func read_config() {
                 MaxAge:     28, //days
                 Compress:   true, // disabled by default
         }
-//        defer ownlogger.Close()
+//        defer log.Close()
         log.SetOutput(ownlogger)
 
-        dirs = viper.GetStringSlice("dirs")
+        pairs = viper.GetStringSlice("pairs")
 
         do_trace = viper.GetBool("do_trace")
 
@@ -112,10 +134,10 @@ func read_config() {
         gctpassword = viper.GetString("gctpassword")
 
 	if do_trace {
-		log.Println("do_trace: ",do_trace)
-		log.Println("own_log; ",ownlog)
-		for i, v := range dirs {
-			log.Printf("Index: %d, Value: %v\n", i, v )
+		fmt.Println("do_trace: ",do_trace)
+		fmt.Println("own_log; ",ownlog)
+		for i, v := range pairs {
+			fmt.Printf("Index: %d, Value: %v\n", i, v )
 		}
 	}
 }
@@ -123,6 +145,6 @@ func read_config() {
 func myUsage() {
      fmt.Printf("Usage: %s argument\n", os.Args[0])
      fmt.Println("Arguments:")
-     fmt.Println("backup        Backup the directories mentioned in the config file")
+     fmt.Println("cron        Do regular work")
 }
 
