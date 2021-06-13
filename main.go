@@ -25,7 +25,7 @@ package main
 import (
 	"log"
 	"os"
-//	"os/exec"
+	"os/exec"
 	"fmt"
 	"io"
 //	"time"
@@ -43,34 +43,17 @@ var ownlog string
 
 var dirs []string
 
-var tarcmd string
+var gctcmd string
 
-var ftpsuser string
-var ftpspassword string
-var ftpshost string
-
-var dailydir string
-var weeklydir string
-var monthlydir string
-var tempdir string
-
-var dailykeep int64
-var weeklykeep int64
-var monthlykeep int64
-
-var do_encrypt bool = true
-var encryptsuffix string
-var encryptpassw string
-
-var transferfile string = "/autowebbackup.tar.gz"
-var transfersuffix string = "tar.gz"
+var gctuser string
+var gctpassword string
 
 var ownlogger io.Writer
 
 func main() {
 // Set location of config 
-	viper.SetConfigName("autowebbackup") // name of config file (without extension)
-	viper.AddConfigPath("/etc/")   // path to look for the config file in
+	viper.SetConfigName("yourCryptoBot") // name of config file (without extension)
+	viper.AddConfigPath("~/.yourCryptoBot/")   // path to look for the config file in
 
 // Read config
 	read_config()
@@ -91,6 +74,11 @@ func main() {
 }
 
 func cron() {
+	cmd := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getinfo")
+	err := cmd.Run()
+	if err != nil {
+		fmt.Printf("Command finished with error: %v", err)
+	}
 }
 
 func read_config() {
@@ -118,24 +106,10 @@ func read_config() {
 
         do_trace = viper.GetBool("do_trace")
 
-	tarcmd = viper.GetString("tarcmd")
+	gctcmd = viper.GetString("gctcmd")
 
-	ftpsuser = viper.GetString("ftpsuser")
-        ftpspassword = viper.GetString("ftpspassword")
-        ftpshost = viper.GetString("ftpshost")
-
-        dailydir = viper.GetString("dailydir")
-        weeklydir = viper.GetString("weeklydir")
-        monthlydir = viper.GetString("monthlydir")
-        tempdir = viper.GetString("tempdir")
-
-        dailykeep = viper.GetInt64("dailykeep")
-        weeklykeep = viper.GetInt64("weeklykeep")
-        monthlykeep = viper.GetInt64("monthlykeep")
-
-	do_encrypt = viper.GetBool("do_encrypt")
-	encryptsuffix = viper.GetString("encryptsuffix")
-	encryptpassw = viper.GetString("encryptpassw")
+	gctuser = viper.GetString("gctuser")
+        gctpassword = viper.GetString("gctpassword")
 
 	if do_trace {
 		log.Println("do_trace: ",do_trace)
