@@ -36,6 +36,8 @@ import (
 //	"encoding/json" 
 	"github.com/spf13/viper"
 	"github.com/natefinch/lumberjack"
+    	"database/sql"
+    	_ "github.com/lib/pq"
 )
 
 type candle struct {
@@ -54,6 +56,10 @@ var gctcmd string
 
 var gctuser string
 var gctpassword string
+
+var pguser string
+var pgpassword string
+var pgdb string
 
 var ownlogger io.Writer
 
@@ -86,6 +92,13 @@ func main() {
 }
 
 func cron() {
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+ 
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
+ 
+	defer db.Close()
+
 	for i, v := range pairs {
 		log.Printf("Index: %d, Value: %v\n", i, v )
 		out:=getPair(v,"2021-06-13 16:00:00","2021-06-13 16:15:00")
@@ -133,6 +146,10 @@ func read_config() {
 	gctuser = viper.GetString("gctuser")
         gctpassword = viper.GetString("gctpassword")
 
+        pguser = viper.GetString("pguser")
+        pgpassword = viper.GetString("pgpassword")
+	pgdb = viper.GetString("pgdb")
+
 	if do_trace {
 		fmt.Println("do_trace: ",do_trace)
 		fmt.Println("own_log; ",ownlog)
@@ -148,3 +165,8 @@ func myUsage() {
      fmt.Println("cron        Do regular work")
 }
 
+func CheckError(err error) {
+    if err != nil {
+        panic(err)
+    }
+}
