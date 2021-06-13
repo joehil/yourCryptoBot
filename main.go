@@ -33,17 +33,35 @@ import (
 //    	"path"
 //    	"path/filepath"
 //    	"sync/atomic"
-//	"encoding/json" 
+	"encoding/json" 
 	"github.com/spf13/viper"
 	"github.com/natefinch/lumberjack"
     	"database/sql"
     	_ "github.com/lib/pq"
 )
 
-type candle struct {
+type pairstr struct {
+    delimiter string
+    base string
+    quote string
+}
+
+type candlesstr struct {
+    time string
+    low float64
+    high float64
+    open float64
+    close float64
+    volume float64
+}
+
+type candlecontainer struct {
     exchange string
-    Body string
-    Time int64
+    pair pairstr
+    start string
+    end string
+    interval string
+    candle []candlesstr
 }
 
 var do_trace bool = true
@@ -99,10 +117,34 @@ func cron() {
  
 	defer db.Close()
 
+	var cand interface{}
+
 	for i, v := range pairs {
 		log.Printf("Index: %d, Value: %v\n", i, v )
 		out:=getPair(v,"2021-06-13 16:00:00","2021-06-13 16:15:00")
 		fmt.Print(string(out))
+		err := json.Unmarshal(out, &cand)
+	        if err != nil { // Handle JSON errors 
+        	        fmt.Printf("JSON error: %v", err)
+        	}
+data := cand.(map[string]interface{})
+
+for k, vv := range data {
+    switch vv := vv.(type) {
+    case string:
+        fmt.Println(k, vv, "(string)")
+    case float64:
+        fmt.Println(k, vv, "(float64)")
+    case []interface{}:
+        fmt.Println(k, "(array):")
+        for i, u := range vv {
+            fmt.Println("    ", i, u)
+        }
+    default:
+        fmt.Println(k, vv, "(unknown)")
+    }
+}
+
 	}
 }
 
