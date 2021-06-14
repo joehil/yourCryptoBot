@@ -38,33 +38,7 @@ import (
 	"github.com/natefinch/lumberjack"
     	"database/sql"
     	_ "github.com/lib/pq"
-	jhbinance "github.com/thrasher-corp/gocryptotrader/exchanges/binance"
-
 )
-
-type pairstr struct {
-    delimiter string
-    base string
-    quote string
-}
-
-type candlesstr struct {
-    time string
-    low float64
-    high float64
-    open float64
-    close float64
-    volume float64
-}
-
-type candlecontainer struct {
-    exchange string
-    pair pairstr
-    start string
-    end string
-    interval string
-    candle []candlesstr
-}
 
 var do_trace bool = true
 
@@ -103,10 +77,6 @@ func main() {
 			cron()
 			os.Exit(0)
         	}
-                if a1 == "serve" {
-                        serve()
-                        os.Exit(0)
-                }
 		fmt.Println("parameter invalid")
 		os.Exit(-1)
 	}
@@ -116,6 +86,10 @@ func main() {
 }
 
 func cron() {
+	var start string
+	var end string
+	var exchange string
+	var interval string
 	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
  
 	db, err := sql.Open("postgres", psqlconn)
@@ -123,52 +97,23 @@ func cron() {
  
 	defer db.Close()
 
-	var cand interface{}
+	var cand map[string]interface{}
 
 	for i, v := range pairs {
 		log.Printf("Index: %d, Value: %v\n", i, v )
 		out:=getPair(v,"2021-06-13 16:00:00","2021-06-13 16:15:00")
-		fmt.Print(string(out))
+		fmt.Println(string(out))
 		err := json.Unmarshal(out, &cand)
 	        if err != nil { // Handle JSON errors 
         	        fmt.Printf("JSON error: %v", err)
         	}
-data := cand.(map[string]interface{})
-
-for k, vv := range data {
-    switch vv := vv.(type) {
-    case string:
-        fmt.Println(k, vv, "(string)")
-    case float64:
-        fmt.Println(k, vv, "(float64)")
-    case []interface{}:
-        fmt.Println(k, "(array):")
-        for i, u := range vv {
-            fmt.Println("    ", i, u)
-        }
-    default:
-        fmt.Println(k, vv, "(unknown)")
-    }
-}
-
+		start = fmt.Sprintf("%v",cand["start"])
+                end = fmt.Sprintf("%v",cand["end"])
+                exchange = fmt.Sprintf("%v",cand["exchange"])
+                interval = fmt.Sprintf("%v",cand["interval"])
+		fmt.Printf("S: %s, E: %s, Ex: %s, I: %s\n",start,end,exchange,interval)
 	}
 }
-
-func serve() {
-	var klrq jhbinance.KlinesRequestParams	
-	var b jhbinance.Binance
-
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
-
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
-
-        defer db.Close()
-
-	cndls, err := b.GetSpotKline(&klrq)
-
-}
-
 
 func getPair(p string, s string, e string) []byte {
         out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "gethistoriccandlesextended",
