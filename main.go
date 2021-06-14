@@ -98,6 +98,7 @@ func cron() {
 	defer db.Close()
 
 	var cand map[string]interface{}
+	var pair map[string]interface{}
 
 	for i, v := range pairs {
 		log.Printf("Index: %d, Value: %v\n", i, v )
@@ -107,11 +108,13 @@ func cron() {
 	        if err != nil { // Handle JSON errors 
         	        fmt.Printf("JSON error: %v", err)
         	}
-		start = fmt.Sprintf("%v",cand["start"])
-                end = fmt.Sprintf("%v",cand["end"])
-                exchange = fmt.Sprintf("%v",cand["exchange"])
-                interval = fmt.Sprintf("%v",cand["interval"])
+		start = cand["start"].(string)
+                end = cand["end"].(string)
+                exchange = cand["exchange"].(string)
+                interval = cand["interval"].(string)
+		pair = cand["pair"].(map[string]interface{})
 		fmt.Printf("S: %s, E: %s, Ex: %s, I: %s\n",start,end,exchange,interval)
+		fmt.Println(pair)
 	}
 }
 
