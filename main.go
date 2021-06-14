@@ -38,6 +38,8 @@ import (
 	"github.com/natefinch/lumberjack"
     	"database/sql"
     	_ "github.com/lib/pq"
+	jhbinance "github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+
 )
 
 type pairstr struct {
@@ -101,6 +103,10 @@ func main() {
 			cron()
 			os.Exit(0)
         	}
+                if a1 == "serve" {
+                        serve()
+                        os.Exit(0)
+                }
 		fmt.Println("parameter invalid")
 		os.Exit(-1)
 	}
@@ -147,6 +153,22 @@ for k, vv := range data {
 
 	}
 }
+
+func serve() {
+	var klrq jhbinance.KlinesRequestParams	
+	var b jhbinance.Binance
+
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+	cndls, err := b.GetSpotKline(&klrq)
+
+}
+
 
 func getPair(p string, s string, e string) []byte {
         out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "gethistoriccandlesextended",
@@ -205,6 +227,7 @@ func myUsage() {
      fmt.Printf("Usage: %s argument\n", os.Args[0])
      fmt.Println("Arguments:")
      fmt.Println("cron        Do regular work")
+     fmt.Println("serv        Do regular work, but without gctcli")
 }
 
 func CheckError(err error) {
