@@ -90,6 +90,8 @@ func cron() {
 	var end string
 	var exchange string
 	var interval string
+	var base string
+	var quote string
 	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
  
 	db, err := sql.Open("postgres", psqlconn)
@@ -99,10 +101,11 @@ func cron() {
 
 	var cand map[string]interface{}
 	var pair map[string]interface{}
+        var cndls []interface{}
 
 	for i, v := range pairs {
 		log.Printf("Index: %d, Value: %v\n", i, v )
-		out:=getPair(v,"2021-06-13 16:00:00","2021-06-13 16:15:00")
+		out:=getPair(v,"2021-06-13 15:00:00","2021-06-13 16:15:00")
 		fmt.Println(string(out))
 		err := json.Unmarshal(out, &cand)
 	        if err != nil { // Handle JSON errors 
@@ -113,8 +116,15 @@ func cron() {
                 exchange = cand["exchange"].(string)
                 interval = cand["interval"].(string)
 		pair = cand["pair"].(map[string]interface{})
-		fmt.Printf("S: %s, E: %s, Ex: %s, I: %s\n",start,end,exchange,interval)
-		fmt.Println(pair)
+		base = pair["base"].(string)
+		quote = pair["quote"].(string)
+                cndls = cand["candle"].([]interface{})
+		fmt.Printf("S: %s, E: %s, Ex: %s, I: %s, C:%s-%s\n",start,end,exchange,interval,base,quote)
+		for _, cndl := range cndls {
+			cn := cndl.(map[string]interface{})
+			fmt.Println(cn)
+    		}
+
 	}
 }
 
