@@ -28,11 +28,8 @@ import (
 	"os/exec"
 	"fmt"
 	"io"
-//	"time"
+	"time"
 //	"strings"
-//    	"path"
-//    	"path/filepath"
-//    	"sync/atomic"
 	"encoding/json" 
 	"github.com/spf13/viper"
 	"github.com/natefinch/lumberjack"
@@ -74,7 +71,7 @@ func main() {
 	if len(os.Args) > 1 {
         	a1 := os.Args[1]
         	if a1 == "cron" {
-			cron()
+			getCandles()
 			os.Exit(0)
         	}
 		fmt.Println("parameter invalid")
@@ -85,19 +82,20 @@ func main() {
 	}
 }
 
-func cron() {
+func getCandles() {
 	var start string
 	var end string
 	var exchange string
 	var interval string
 	var base string
 	var quote string
-	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
- 
-	db, err := sql.Open("postgres", psqlconn)
-	CheckError(err)
- 
-	defer db.Close()
+	var open float64
+	var close float64
+	var low float64
+	var high float64
+	var volume float64
+	var stime string
+	var layout string = "2006-01-02 15:04:05 MST"
 
 	var cand map[string]interface{}
 	var pair map[string]interface{}
@@ -105,8 +103,7 @@ func cron() {
 
 	for i, v := range pairs {
 		log.Printf("Index: %d, Value: %v\n", i, v )
-		out:=getPair(v,"2021-06-13 15:00:00","2021-06-13 16:15:00")
-		fmt.Println(string(out))
+		out:=getPair(v,"2021-06-05 12:00:00","2021-06-15 21:45:00")
 		err := json.Unmarshal(out, &cand)
 	        if err != nil { // Handle JSON errors 
         	        fmt.Printf("JSON error: %v", err)
@@ -122,9 +119,38 @@ func cron() {
 		fmt.Printf("S: %s, E: %s, Ex: %s, I: %s, C:%s-%s\n",start,end,exchange,interval,base,quote)
 		for _, cndl := range cndls {
 			cn := cndl.(map[string]interface{})
-			fmt.Println(cn)
+			open = cn["open"].(float64)
+                        close = cn["close"].(float64)
+                        volume = cn["volume"].(float64)
+                        low = cn["low"].(float64)
+                        high = cn["high"].(float64)
+			stime = cn["time"].(string)
+			t, err := time.Parse(layout, stime)
+		        if err != nil {
+                		fmt.Printf("Time conversion error: %v", err)
+        		}
+			fmt.Printf("O: %f, C: %f, H: %f, L: %f, V: %f, T: %s\n",open,close,high,low,volume,t)
+			insertCandles(exchange,base+"-"+quote,interval,t,open,high,low,close,volume,"SPOT")
     		}
 
+	}
+}
+
+func insertCandles(exchange string, pair string, interval string, timest time.Time, open float64, high float64, low float64,
+                   close float64, volume float64, asset string) {
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+	sqlStatement := `
+	INSERT INTO yourcandle (exchange_name, pair, interval, timestamp, open, high, low, close, volume, asset)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+	_, err = db.Exec(sqlStatement, exchange, pair, interval, timest, open, high, low, close, volume, asset)
+	if err != nil {
+  		fmt.Printf("SQL error: \n",err)
 	}
 }
 
