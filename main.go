@@ -101,12 +101,21 @@ func getCandles() {
 	var pair map[string]interface{}
         var cndls []interface{}
 
+	ti1 := time.Now()
+	ti2 := time.Now()
+
+	ti1 = ti1.Add(time.Minute * -15)
+	fmt.Println(ti2.String())
+	limit1 := ti1.String()[0:16]
+	limit2 := ti2.String()[0:16]
+
 	for i, v := range pairs {
 		log.Printf("Index: %d, Value: %v\n", i, v )
-		out:=getPair(v,"2021-06-05 12:00:00","2021-06-15 21:45:00")
+		out:=getPair(v,limit1+":00",limit2+":00")
 		err := json.Unmarshal(out, &cand)
 	        if err != nil { // Handle JSON errors 
-        	        fmt.Printf("JSON error: %v", err)
+        	        fmt.Printf("JSON error: %v\n", err)
+			fmt.Printf("JSON input: %v\n",string(out))
         	}
 		start = cand["start"].(string)
                 end = cand["end"].(string)
@@ -150,7 +159,7 @@ func insertCandles(exchange string, pair string, interval string, timest time.Ti
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	_, err = db.Exec(sqlStatement, exchange, pair, interval, timest, open, high, low, close, volume, asset)
 	if err != nil {
-  		fmt.Printf("SQL error: \n",err)
+  		fmt.Printf("SQL error: %v\n",err)
 	}
 }
 
