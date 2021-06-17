@@ -172,6 +172,7 @@ func insertCandles(exchange string, pair string, interval string, timest time.Ti
 }
 
 func insertStats() {
+	fmt.Println("Insert statistics")
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
         db, err := sql.Open("postgres", psqlconn)
@@ -180,8 +181,10 @@ func insertStats() {
         defer db.Close()
 
         sqlStatement := `
-	insert into yourlimits (pair, min,avg,max,count)
-	(select pair, min(close) as min, avg(close) as avg, max(close) as max, count(close) as count from yourcandle 
+	insert into yourlimits (pair, min,avg,max,count,potwin)
+	(select pair, min(close) as min, avg(close) as avg, max(close) as max, count(close) as count,
+	(max(close) - min(close)) * 100 / min(close) as potwin
+	from yourcandle 
 	where "timestamp" > current_timestamp - interval '7 days'
 	group by pair
 	order by pair);`
@@ -192,6 +195,7 @@ func insertStats() {
 }
 
 func deleteStats() {
+	fmt.Println("Delete statistics")
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
         db, err := sql.Open("postgres", psqlconn)
