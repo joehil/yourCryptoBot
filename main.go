@@ -74,6 +74,7 @@ func main() {
 			getCandles()
 			deleteStats()
 			insertStats()
+			updateStats()
 			os.Exit(0)
         	}
 		fmt.Println("parameter invalid")
@@ -193,6 +194,32 @@ func insertStats() {
                 fmt.Printf("SQL error: %v\n",err)
         }
 }
+
+func updateStats() {
+        fmt.Println("Update statistics")
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+	WITH subquery AS (
+	select close,pair from yourcandle y 
+	where timestamp =
+	(select max(timestamp) from yourcandle)
+	)
+	UPDATE yourlimits l
+	SET current = subquery.close
+	FROM subquery
+	WHERE l.pair = subquery.pair;`
+        _, err = db.Exec(sqlStatement)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+}
+
 
 func deleteStats() {
 	fmt.Println("Delete statistics")
