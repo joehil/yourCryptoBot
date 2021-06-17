@@ -75,6 +75,8 @@ func main() {
 			deleteStats()
 			insertStats()
 			updateStats()
+			calculateAdvice()
+			calculateLimit()
 			os.Exit(0)
         	}
 		fmt.Println("parameter invalid")
@@ -220,6 +222,68 @@ func updateStats() {
         }
 }
 
+func calculateAdvice() {
+        fmt.Println("Calculate advice")
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+	with subquery as (
+	select
+	pair,
+	case
+	when (max - (max - min)/10) < current
+	then 'sell'
+	when (min + (max - min)/10) > current
+	then 'buy'
+	else 'no action'
+	end as advice
+	from yourlimits
+	)
+        UPDATE yourlimits l
+        SET advice = subquery.advice
+        FROM subquery
+        WHERE l.pair = subquery.pair;`
+        _, err = db.Exec(sqlStatement)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+}
+
+func calculateLimit() {
+        fmt.Println("Calculate limit")
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        with subquery as (
+        select
+        pair,
+        case
+        when (max - (max - min)/10) < current
+        then (max - (max - min)/10)
+        when (min + (max - min)/10) > current
+        then (min + (max - min)/10)
+        else 0
+        end as limit
+        from yourlimits)
+        UPDATE yourlimits l
+        SET "limit" = subquery.limit
+        FROM subquery
+        WHERE l.pair = subquery.pair;`
+        _, err = db.Exec(sqlStatement)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+}
 
 func deleteStats() {
 	fmt.Println("Delete statistics")
