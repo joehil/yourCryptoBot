@@ -79,6 +79,10 @@ func main() {
 			calculateLimit()
 			os.Exit(0)
         	}
+                if a1 == "climit" {
+                        calculateLimit()
+                        os.Exit(0)
+                }
 		fmt.Println("parameter invalid")
 		os.Exit(-1)
 	}
@@ -268,11 +272,9 @@ func calculateLimit() {
         select
         pair,
         case
-        when (max - (max - min)/10) < current
-        then (max - (max - min)/10)
         when (min + (max - min)/10) > current
         then (min + (max - min)/10)
-        else 0
+        else (max - (max - min)/10)
         end as limit
         from yourlimits)
         UPDATE yourlimits l
@@ -359,7 +361,7 @@ func myUsage() {
      fmt.Printf("Usage: %s argument\n", os.Args[0])
      fmt.Println("Arguments:")
      fmt.Println("cron        Do regular work")
-     fmt.Println("serv        Do regular work, but without gctcli")
+     fmt.Println("climit      Calculate new limits")
 }
 
 func CheckError(err error) {
