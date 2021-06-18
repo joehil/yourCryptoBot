@@ -29,6 +29,7 @@ import (
 //	"io"
 	"time"
 //	"strings"
+	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"encoding/json" 
 	"github.com/spf13/viper"
     	"database/sql"
@@ -47,6 +48,8 @@ var gctpassword string
 var pguser string
 var pgpassword string
 var pgdb string
+
+var tbtoken string
 
 func main() {
 // Set location of config 
@@ -77,6 +80,11 @@ func main() {
                         calculateLimit()
                         os.Exit(0)
                 }
+                if a1 == "telegram" {
+                        sendTelegram()
+                        os.Exit(0)
+                }
+
 		fmt.Println("parameter invalid")
 		os.Exit(-1)
 	}
@@ -308,6 +316,36 @@ func getPair(p string, s string, e string) []byte {
 	return out
 }
 
+func sendTelegram(){
+	bot, err := tgbotapi.NewBotAPI(tbtoken)
+	if err != nil {
+		fmt.Printf("Telegram error: %v\n",err)
+		return
+	}
+
+	bot.Debug = true
+
+	fmt.Printf("Authorized on account %s", bot.Self.UserName)
+
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+
+	updates, err := bot.GetUpdatesChan(u)
+
+	for update := range updates {
+		if update.Message == nil { // ignore any non-Message Updates
+			continue
+		}
+
+		fmt.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+
+		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Das ist ein Test")
+		msg.ReplyToMessageID = update.Message.MessageID
+
+		bot.Send(msg)
+	}
+}
+
 func read_config() {
         err := viper.ReadInConfig() // Find and read the config file
         if err != nil { // Handle errors reading the config file
@@ -326,6 +364,8 @@ func read_config() {
         pguser = viper.GetString("pguser")
         pgpassword = viper.GetString("pgpassword")
 	pgdb = viper.GetString("pgdb")
+
+	tbtoken = viper.GetString("tbtoken")
 
 	if do_trace {
 		fmt.Println("do_trace: ",do_trace)
