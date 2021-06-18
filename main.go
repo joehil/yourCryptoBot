@@ -23,23 +23,19 @@ SOFTWARE. */
 package main
 
 import (
-	"log"
 	"os"
 	"os/exec"
 	"fmt"
-	"io"
+//	"io"
 	"time"
 //	"strings"
 	"encoding/json" 
 	"github.com/spf13/viper"
-	"github.com/natefinch/lumberjack"
     	"database/sql"
     	_ "github.com/lib/pq"
 )
 
 var do_trace bool = true
-
-var ownlog string
 
 var pairs []string
 
@@ -52,13 +48,11 @@ var pguser string
 var pgpassword string
 var pgdb string
 
-var ownlogger io.Writer
-
 func main() {
 // Set location of config 
 	dirname, err := os.UserHomeDir()
     	if err != nil {
-        	log.Fatal( err )
+        	fmt.Println( err )
     	}
 
 	viper.SetConfigName("yourCryptoBot") // name of config file (without extension)
@@ -119,7 +113,7 @@ func getCandles() {
 	limit2 := ti2.String()[0:16]
 
 	for i, v := range pairs {
-		log.Printf("Index: %d, Value: %v\n", i, v )
+		fmt.Printf("Index: %d, Value: %v\n", i, v )
 		out:=getPair(v,limit1+":00",limit2+":00")
 		if out == nil {
 			continue
@@ -317,23 +311,8 @@ func getPair(p string, s string, e string) []byte {
 func read_config() {
         err := viper.ReadInConfig() // Find and read the config file
         if err != nil { // Handle errors reading the config file
-                log.Printf("Config file not found: %v", err)
+                fmt.Printf("Config file not found: %v", err)
         }
-
-        ownlog = viper.GetString("own_log")
-        if ownlog =="" { // Handle errors reading the config file
-                fmt.Printf("Filename for ownlog unknown: %v", err)
-        }
-// Open log file
-        ownlogger = &lumberjack.Logger{
-                Filename:   ownlog,
-                MaxSize:    5, // megabytes
-                MaxBackups: 3,
-                MaxAge:     28, //days
-                Compress:   true, // disabled by default
-        }
-//        defer log.Close()
-        log.SetOutput(ownlogger)
 
         pairs = viper.GetStringSlice("pairs")
 
@@ -350,7 +329,6 @@ func read_config() {
 
 	if do_trace {
 		fmt.Println("do_trace: ",do_trace)
-		fmt.Println("own_log; ",ownlog)
 		for i, v := range pairs {
 			fmt.Printf("Index: %d, Value: %v\n", i, v )
 		}
