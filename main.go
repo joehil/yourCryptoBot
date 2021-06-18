@@ -51,6 +51,16 @@ var pgdb string
 
 var tbtoken string
 
+type Parm struct {
+	key string
+	intp int64
+	floatp float64
+	stringp string
+	datep time.Time
+	timep time.Time
+	timestampp time.Time
+}
+
 func main() {
 // Set location of config 
 	dirname, err := os.UserHomeDir()
@@ -316,6 +326,44 @@ func getPair(p string, s string, e string) []byte {
 	return out
 }
 
+func insertParms(key string, intp int64, floatp float64, stringp string, datep time.Time, timep time.Time, timestampp time.Time ) {
+        fmt.Printf("Insert parm %v\n",key)
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        insert into yourparameter (key, "int", "float", "string", "date", "time", "timestamp")
+	values ($1,$2,$3,$4,$5,$6,$7);`
+        _, err = db.Exec(sqlStatement,key,intp,floatp,stringp,datep,timep,timestampp)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+}
+
+func getParms(key string) (parms Parm, err error) {
+        fmt.Printf("Get parm %v\n",key)
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+ 
+        sqlStatement := `
+        select "int", "float", "string", "date", "time", "timestamp"  from yourparameter 
+	where key = $1;`
+
+	err = db.QueryRow(sqlStatement, key).Scan(&parms.intp,&parms.floatp,&parms.stringp,&parms.datep,&parms.timep,&parms.timestampp)
+	if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+	return
+}
+
 func sendTelegram(){
 	bot, err := tgbotapi.NewBotAPI(tbtoken)
 	if err != nil {
@@ -332,13 +380,25 @@ func sendTelegram(){
 
 	updates, err := bot.GetUpdatesChan(u)
 
+	parms,err := getParms("ChatID")
+	if err == nil {
+		msg := tgbotapi.NewMessage(parms.intp, "Jetzt habe ich es")
+		bot.Send(msg)
+	}
+
+	var i int = 0
+
 	for update := range updates {
 		if update.Message == nil { // ignore any non-Message Updates
-			continue
+			i++
+			if i < 3 {
+				continue
+			} else {break}
 		}
 
 		fmt.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
+		insertParms("ChatID", update.Message.Chat.ID, 0, "", time.Now(), time.Now(), time.Now())
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Das ist ein Test")
 		msg.ReplyToMessageID = update.Message.MessageID
 
