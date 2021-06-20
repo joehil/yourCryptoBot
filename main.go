@@ -202,7 +202,7 @@ func insertStats() {
         sqlStatement := `
 	insert into yourlimits (pair, min,avg,max,count,potwin)
 	(select pair, min(close) as min, avg(close) as avg, max(close) as max, count(close) as count,
-	(max(close) - min(close)) * 100 / min(close) as potwin
+	(max(close) - min(close)) * 80 / min(close) as potwin
 	from yourcandle 
 	where "timestamp" > current_timestamp - interval '7 days'
 	group by pair
@@ -252,9 +252,9 @@ func calculateAdvice() {
 	select
 	pair,
 	case
-	when (max - (max - min)/10) < current
+	when (max - (max - min)/15) < current
 	then 'sell'
-	when (min + (max - min)/10) > current
+	when (min + (max - min)/15) > current
 	then 'buy'
 	else 'no action'
 	end as advice
@@ -371,7 +371,7 @@ func sendTelegram(){
 		return
 	}
 
-	bot.Debug = true
+	bot.Debug = false
 
 	fmt.Printf("Authorized on account %s", bot.Self.UserName)
 
@@ -382,7 +382,7 @@ func sendTelegram(){
 
 	parms,err := getParms("ChatID")
 	if err == nil {
-		msg := tgbotapi.NewMessage(parms.intp, "Jetzt habe ich es")
+		msg := tgbotapi.NewMessage(parms.intp, "The bot is active")
 		bot.Send(msg)
 	}
 
@@ -399,7 +399,7 @@ func sendTelegram(){
 		fmt.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
 		insertParms("ChatID", update.Message.Chat.ID, 0, "", time.Now(), time.Now(), time.Now())
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Das ist ein Test")
+		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "I hear you")
 		msg.ReplyToMessageID = update.Message.MessageID
 
 		bot.Send(msg)
