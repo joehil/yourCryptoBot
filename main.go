@@ -423,7 +423,7 @@ func sendAdvice() {
         if err == nil {
 		getAdvice("sell")
 	}
-	getAdvice("no action")
+//	getAdvice("no action")
 }
 
 func deleteParms(key string) (parms Parm, err error) {
@@ -490,7 +490,7 @@ func sendTelegram(){
 		mess = ""
                 line, err := reader.ReadBytes('\n')
                 if err == nil {
-                        fmt.Print("%v Message: %v\n", time.Now().String(), string(line))
+                        fmt.Printf("%v Message: %s", time.Now().String(), string(line))
                 	msg := tgbotapi.NewMessage(parms.intp, string(line))
                 	bot.Send(msg)
                 }
@@ -518,7 +518,7 @@ func sendTelegram(){
                 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, mess)
                 			msg.ReplyToMessageID = update.Message.MessageID
 		                	bot.Send(msg)
-					fmt.Printf("%v Sent: %v\n", time.Now().String(),mess)
+					fmt.Printf("%s Sent: %s\n", time.Now().String(),mess)
 				}
  			default:
  		}
