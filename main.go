@@ -90,6 +90,7 @@ func main() {
 			updateStats()
 			calculateAdvice()
 			calculateLimit()
+			sendAdvice()
 			os.Exit(0)
         	}
                 if a1 == "climit" {
@@ -368,6 +369,61 @@ func getParms(key string) (parms Parm, err error) {
                 fmt.Printf("SQL error: %v\n",err)
         }
 	return
+}
+
+func getAdvice(advice string) {
+        fmt.Printf("Get advice %v\n",advice)
+
+        f, err := os.OpenFile(pipeFile, os.O_WRONLY|syscall.O_NONBLOCK, 0644)
+        if err != nil {
+                fmt.Printf("open: %v\n", err)
+        }
+        defer f.Close()
+
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        select pair, "limit"  from yourlimits
+        where advice = $1;`
+
+        rows, err := db.Query(sqlStatement, advice)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+	defer rows.Close()
+
+	for rows.Next(){
+		var pair string
+		var limit float64
+		if err := rows.Scan(&pair, &limit); err != nil {
+			fmt.Println(err)
+		}
+		fmt.Printf("%v - %f\n", pair, limit)
+		_, err := f.WriteString(fmt.Sprintf("%v %v at %f\n",advice,pair,limit))
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+    		fmt.Println(err)
+	}
+}
+
+func sendAdvice() {
+	_, err := getParms("Nobuyinfo")
+	if err == nil {
+		getAdvice("buy")
+	}
+        _, err = getParms("Nosellinfo")
+        if err == nil {
+		getAdvice("sell")
+	}
+	getAdvice("no action")
 }
 
 func deleteParms(key string) (parms Parm, err error) {
