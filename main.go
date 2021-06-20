@@ -26,15 +26,19 @@ import (
 	"os"
 	"os/exec"
 	"fmt"
+	"bufio"
 //	"io"
 	"time"
 //	"strings"
+	"syscall"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"encoding/json" 
 	"github.com/spf13/viper"
     	"database/sql"
     	_ "github.com/lib/pq"
 )
+
+var pipeFile = "/tmp/yourpipe"
 
 var do_trace bool = true
 
@@ -62,6 +66,8 @@ type Parm struct {
 }
 
 func main() {
+	fmt.Printf("%v\n", time.Now().String())
+
 // Set location of config 
 	dirname, err := os.UserHomeDir()
     	if err != nil {
@@ -364,7 +370,45 @@ func getParms(key string) (parms Parm, err error) {
 	return
 }
 
+func deleteParms(key string) (parms Parm, err error) {
+        fmt.Printf("Delete parm %v\n",key)
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        delete from yourparameter
+        where key = $1;`
+
+        _, err = db.Exec(sqlStatement, key)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+        return
+}
+
+
 func sendTelegram(){
+	var mess string
+
+	if err := os.Remove(pipeFile); err != nil && !os.IsNotExist(err) {
+		fmt.Printf("remove: %v\n", err)
+	}
+	if err := syscall.Mkfifo(pipeFile, 0644); err != nil {
+		fmt.Printf("mkfifo: %v\n", err)
+	}
+
+	f, err := os.OpenFile(pipeFile, os.O_RDONLY|syscall.O_NONBLOCK, 0644)
+	if err != nil {
+		fmt.Printf("open: %v\n", err)
+	}
+	defer f.Close()
+
+	reader := bufio.NewReader(f)
+
 	bot, err := tgbotapi.NewBotAPI(tbtoken)
 	if err != nil {
 		fmt.Printf("Telegram error: %v\n",err)
@@ -386,24 +430,44 @@ func sendTelegram(){
 		bot.Send(msg)
 	}
 
-	var i int = 0
-
-	for update := range updates {
-		if update.Message == nil { // ignore any non-Message Updates
-			i++
-			if i < 3 {
-				continue
-			} else {break}
-		}
-
-		fmt.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-
-		insertParms("ChatID", update.Message.Chat.ID, 0, "", time.Now(), time.Now(), time.Now())
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "I hear you")
-		msg.ReplyToMessageID = update.Message.MessageID
-
-		bot.Send(msg)
-	}
+	for true {
+		mess = ""
+                line, err := reader.ReadBytes('\n')
+                if err == nil {
+                        fmt.Print("%v Message: %v\n", time.Now().String(), string(line))
+                	msg := tgbotapi.NewMessage(parms.intp, string(line))
+                	bot.Send(msg)
+                }
+       		select {
+ 			case update := <-updates:
+  				fmt.Printf("%v [%s] %s\n", time.Now().String(), update.Message.From.UserName, update.Message.Text)
+                		insertParms("ChatID", update.Message.Chat.ID, 0, "", time.Now(), time.Now(), time.Now())
+				if  update.Message.Text == "Nobuyinfo" {
+                                	insertParms("Nobuyinfo", 0, 0, "", time.Now(), time.Now(), time.Now())
+					mess = "command successful"
+				}
+                                if  update.Message.Text == "Nosellinfo" {
+                                        insertParms("Nosellinfo", 0, 0, "", time.Now(), time.Now(), time.Now())
+                                        mess = "command successful"
+                                }
+                                if  update.Message.Text == "Buyinfo" {
+					deleteParms("Nobuyinfo")
+                                        mess = "command successful"
+                                }
+                                if  update.Message.Text == "Sellinfo" {
+					deleteParms("Nosellinfo")
+                                        mess = "command successful"
+                                }
+				if  mess != "" {
+                			msg := tgbotapi.NewMessage(update.Message.Chat.ID, mess)
+                			msg.ReplyToMessageID = update.Message.MessageID
+		                	bot.Send(msg)
+					fmt.Printf("%v Sent: %v\n", time.Now().String(),mess)
+				}
+ 			default:
+ 		}
+		time.Sleep(30 * time.Second)
+	} 
 }
 
 func read_config() {
@@ -440,6 +504,7 @@ func myUsage() {
      fmt.Println("Arguments:")
      fmt.Println("cron        Do regular work")
      fmt.Println("climit      Calculate new limits")
+     fmt.Println("telegram    Start telegram daemon")
 }
 
 func CheckError(err error) {
