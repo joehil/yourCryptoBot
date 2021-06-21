@@ -29,7 +29,7 @@ import (
 	"bufio"
 //	"io"
 	"time"
-//	"strings"
+	"strings"
 	"syscall"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"encoding/json" 
@@ -99,6 +99,10 @@ func main() {
                 }
                 if a1 == "telegram" {
                         sendTelegram()
+                        os.Exit(0)
+                }
+                if a1 == "advice" {
+                        sendAdvice()
                         os.Exit(0)
                 }
 
@@ -360,11 +364,13 @@ func getParms(key string) (parms Parm, err error) {
 
         defer db.Close()
  
+	parms.key = ""
+
         sqlStatement := `
-        select "int", "float", "string", "date", "time", "timestamp"  from yourparameter 
+        select "key", "int", "float", "string", "date", "time", "timestamp"  from yourparameter 
 	where key = $1;`
 
-	err = db.QueryRow(sqlStatement, key).Scan(&parms.intp,&parms.floatp,&parms.stringp,&parms.datep,&parms.timep,&parms.timestampp)
+	err = db.QueryRow(sqlStatement, key).Scan(&parms.key,&parms.intp,&parms.floatp,&parms.stringp,&parms.datep,&parms.timep,&parms.timestampp)
 	if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -372,6 +378,8 @@ func getParms(key string) (parms Parm, err error) {
 }
 
 func getAdvice(advice string) {
+	var wr bool = false
+
         fmt.Printf("Get advice %v\n",advice)
 
         f, err := os.OpenFile(pipeFile, os.O_WRONLY|syscall.O_NONBLOCK, 0644)
@@ -404,7 +412,8 @@ func getAdvice(advice string) {
 			fmt.Println(err)
 		}
 		fmt.Printf("%v - %f\n", pair, limit)
-		_, err := f.WriteString(fmt.Sprintf("%v %v at %f\n",advice,pair,limit))
+		_, err := f.WriteString(fmt.Sprintf("%v %v at %f|",advice,pair,limit))
+		wr = true
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -412,15 +421,18 @@ func getAdvice(advice string) {
 	if err := rows.Err(); err != nil {
     		fmt.Println(err)
 	}
+	if wr {
+                f.WriteString("\n")
+	}
 }
 
 func sendAdvice() {
 	_, err := getParms("Nobuyinfo")
-	if err == nil {
+	if err != nil {
 		getAdvice("buy")
 	}
         _, err = getParms("Nosellinfo")
-        if err == nil {
+        if err != nil {
 		getAdvice("sell")
 	}
 //	getAdvice("no action")
@@ -490,8 +502,10 @@ func sendTelegram(){
 		mess = ""
                 line, err := reader.ReadBytes('\n')
                 if err == nil {
-                        fmt.Printf("%v Message: %s", time.Now().String(), string(line))
-                	msg := tgbotapi.NewMessage(parms.intp, string(line))
+			m := string(line)
+			m = strings.ReplaceAll(m, "|", "\n")
+                        fmt.Printf("%v Message: %s", time.Now().String(), m)
+                	msg := tgbotapi.NewMessage(parms.intp, m)
                 	bot.Send(msg)
                 }
        		select {
