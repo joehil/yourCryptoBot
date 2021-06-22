@@ -34,6 +34,7 @@ import (
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"encoding/json" 
 	"github.com/spf13/viper"
+	"github.com/sajari/regression"
     	"database/sql"
     	_ "github.com/lib/pq"
 )
@@ -105,7 +106,10 @@ func main() {
                         sendAdvice()
                         os.Exit(0)
                 }
-
+                if a1 == "trend7" {
+                        trend7()
+                        os.Exit(0)
+                }
 		fmt.Println("parameter invalid")
 		os.Exit(-1)
 	}
@@ -581,4 +585,31 @@ func CheckError(err error) {
     if err != nil {
         panic(err)
     }
+}
+
+func trend7() {
+	r := new(regression.Regression)
+	r.SetObserved("Close")
+	r.SetVar(0, "Timestamp")
+	r.Train(
+		regression.DataPoint(10, []float64{1}),
+	)
+	r.Train(
+		regression.DataPoint(11, []float64{2}),
+		regression.DataPoint(12, []float64{3}),
+		regression.DataPoint(13, []float64{4}),
+		regression.DataPoint(14, []float64{5}),
+		regression.DataPoint(17, []float64{6}),
+	)
+	r.Train(
+		regression.DataPoint(18, []float64{7}),
+		regression.DataPoint(20, []float64{8}),
+		regression.DataPoint(22, []float64{9}),
+		regression.DataPoint(23, []float64{10}),
+	)
+	r.Run()
+
+	fmt.Printf("Regression formula:\n%v\n", r.Formula)
+	fmt.Printf("Coeff: %f\n", r.Coeff(0))
+        fmt.Printf("Coeff: %f\n", r.Coeff(1))
 }
