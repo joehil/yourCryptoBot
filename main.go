@@ -91,6 +91,7 @@ func main() {
 			updateStats()
 			calculateAdvice()
 			calculateLimit()
+			calculateTrends()
 			sendAdvice()
 			os.Exit(0)
         	}
@@ -106,8 +107,22 @@ func main() {
                         sendAdvice()
                         os.Exit(0)
                 }
+                if a1 == "trend4" {
+                        trend4("BNB-EUR")
+                        os.Exit(0)
+                }
                 if a1 == "trend7" {
-                        trend7()
+                        trend7("BNB-EUR")
+                        os.Exit(0)
+                }
+                if a1 == "trend24" {
+                        trend24("BNB-EUR")
+                        os.Exit(0)
+                }
+                if a1 == "trend" {
+                        trend24("ADA-EUR")
+			trend7("ADA-EUR")
+			trend4("ADA-EUR")
                         os.Exit(0)
                 }
 		fmt.Println("parameter invalid")
@@ -587,29 +602,238 @@ func CheckError(err error) {
     }
 }
 
-func trend7() {
-	r := new(regression.Regression)
-	r.SetObserved("Close")
-	r.SetVar(0, "Timestamp")
-	r.Train(
-		regression.DataPoint(10, []float64{1}),
-	)
-	r.Train(
-		regression.DataPoint(11, []float64{2}),
-		regression.DataPoint(12, []float64{3}),
-		regression.DataPoint(13, []float64{4}),
-		regression.DataPoint(14, []float64{5}),
-		regression.DataPoint(17, []float64{6}),
-	)
-	r.Train(
-		regression.DataPoint(18, []float64{7}),
-		regression.DataPoint(20, []float64{8}),
-		regression.DataPoint(22, []float64{9}),
-		regression.DataPoint(23, []float64{10}),
-	)
-	r.Run()
+func trend7(pair string) {
+        var wr bool = false
+	var tm1 int64
+	var coeff float64
 
-	fmt.Printf("Regression formula:\n%v\n", r.Formula)
-	fmt.Printf("Coeff: %f\n", r.Coeff(0))
-        fmt.Printf("Coeff: %f\n", r.Coeff(1))
+        fmt.Printf("Calculate trend7 %v\n",pair)
+
+        f, err := os.OpenFile(pipeFile, os.O_WRONLY|syscall.O_NONBLOCK, 0644)
+        if err != nil {
+                fmt.Printf("open: %v\n", err)
+        }
+        defer f.Close()
+
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+		
+        r := new(regression.Regression)
+        r.SetObserved("Close")
+        r.SetVar(0, "Timestamp")
+
+        sqlStatement := `
+        select "timestamp", "close"  from yourcandle
+        where pair = $1
+        and "timestamp" > current_timestamp - interval '7 days'
+	order by "timestamp";`
+
+        rows, err := db.Query(sqlStatement, pair)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+        defer rows.Close()
+
+	var i int = 0;
+        for rows.Next(){
+                var tmstamp time.Time
+		var tmu int64
+                var cls float64
+                if err := rows.Scan(&tmstamp, &cls); err != nil {
+                        fmt.Println(err)
+                }
+                tmu = tmstamp.Unix()
+		if i==0 {
+			tm1 = tmu
+		}
+		tmu = tmu - tm1
+		i++
+	        r.Train(
+			regression.DataPoint(cls, []float64{float64(tmu)}),
+		)
+                wr = true
+                if err != nil {
+                        fmt.Println(err)
+                }
+        }
+        if err := rows.Err(); err != nil {
+                fmt.Println(err)
+        }
+        if wr {
+                r.Run()
+                fmt.Printf("Regression formula:\n%v\n", r.Formula)
+                fmt.Printf("Coeff: %f\n", r.Coeff(0))
+                fmt.Printf("Coeff: %f\n", r.Coeff(1))
+                coeff = r.Coeff(1)
+                sqlStatement = `
+                UPDATE yourlimits
+                SET trend7 = $1
+                WHERE pair = $2;`
+                _, err = db.Exec(sqlStatement,coeff,pair)
+                if err != nil {
+                        fmt.Printf("SQL error: %v\n",err)
+                }
+        }
+}
+
+func trend24(pair string) {
+        var wr bool = false
+        var tm1 int64
+	var coeff float64
+
+        fmt.Printf("Calculate trend24 %v\n",pair)
+
+        f, err := os.OpenFile(pipeFile, os.O_WRONLY|syscall.O_NONBLOCK, 0644)
+        if err != nil {
+                fmt.Printf("open: %v\n", err)
+        }
+        defer f.Close()
+
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        r := new(regression.Regression)
+        r.SetObserved("Close")
+        r.SetVar(0, "Timestamp")
+
+        sqlStatement := `
+        select "timestamp", "close"  from yourcandle
+        where pair = $1
+        and "timestamp" > current_timestamp - interval '24 hours'
+        order by "timestamp";`
+
+        rows, err := db.Query(sqlStatement, pair)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+        defer rows.Close()
+
+        var i int = 0;
+        for rows.Next(){
+                var tmstamp time.Time
+                var tmu int64
+                var cls float64
+                if err := rows.Scan(&tmstamp, &cls); err != nil {
+                        fmt.Println(err)
+                }
+                tmu = tmstamp.Unix()
+                if i==0 {
+                        tm1 = tmu
+                }
+                tmu = tmu - tm1
+                i++
+                r.Train(
+                        regression.DataPoint(cls, []float64{float64(tmu)}),
+                )
+                wr = true
+                if err != nil {
+                        fmt.Println(err)
+                }
+        }
+        if err := rows.Err(); err != nil {
+                fmt.Println(err)
+        }
+        if wr {
+                r.Run()
+                fmt.Printf("Regression formula:\n%v\n", r.Formula)
+                fmt.Printf("Coeff: %f\n", r.Coeff(0))
+                fmt.Printf("Coeff: %f\n", r.Coeff(1))
+                coeff = r.Coeff(1)
+                sqlStatement = `
+                UPDATE yourlimits
+                SET trend24 = $1
+                WHERE pair = $2;`
+                _, err = db.Exec(sqlStatement,coeff,pair)
+                if err != nil {
+                        fmt.Printf("SQL error: %v\n",err)
+                }
+        }
+}
+
+func trend4(pair string) {
+	var wr bool = false
+        var tm1 int64
+	var coeff float64
+
+        fmt.Printf("Calculate trend4 %v\n",pair)
+
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        r := new(regression.Regression)
+        r.SetObserved("Close")
+        r.SetVar(0, "Timestamp")
+
+        sqlStatement := `
+        select "timestamp", "close"  from yourcandle
+        where pair = $1
+        and "timestamp" > current_timestamp - interval '4 hours'
+        order by "timestamp";`
+
+        rows, err := db.Query(sqlStatement, pair)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+        defer rows.Close()
+
+        var i int = 0;
+        for rows.Next(){
+                var tmstamp time.Time
+                var tmu int64
+                var cls float64
+                if err := rows.Scan(&tmstamp, &cls); err != nil {
+                        fmt.Println(err)
+                }
+                tmu = tmstamp.Unix()
+                if i==0 {
+                        tm1 = tmu
+                }
+                tmu = tmu - tm1
+                i++
+                r.Train(
+                        regression.DataPoint(cls, []float64{float64(tmu)}),
+                )
+		wr = true
+                if err != nil {
+                        fmt.Println(err)
+                }
+        }
+        if err := rows.Err(); err != nil {
+                fmt.Println(err)
+        }
+        if wr {
+                r.Run()
+                fmt.Printf("Regression formula:\n%v\n", r.Formula)
+                fmt.Printf("Coeff: %f\n", r.Coeff(0))
+                fmt.Printf("Coeff: %f\n", r.Coeff(1))
+		coeff = r.Coeff(1)
+	        sqlStatement = `
+        	UPDATE yourlimits 
+        	SET trend4 = $1
+        	WHERE pair = $2;`
+        	_, err = db.Exec(sqlStatement,coeff,pair)
+        	if err != nil {
+                	fmt.Printf("SQL error: %v\n",err)
+        	}
+	}
+}
+
+func calculateTrends() {
+        for _, v := range pairs {
+		trend7(v)
+		trend24(v)
+		trend4(v)
+	}
 }
