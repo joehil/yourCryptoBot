@@ -30,6 +30,7 @@ import (
 //	"io"
 	"time"
 	"strings"
+	"strconv"
 	"syscall"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"encoding/json" 
@@ -95,6 +96,16 @@ func main() {
 			sendAdvice()
 			os.Exit(0)
         	}
+                if a1 == "updatestats" {
+                        deleteStats()
+                        insertStats()
+                        updateStats()
+                        calculateAdvice()
+                        calculateLimit()
+                        calculateTrends()
+                        sendAdvice()
+                        os.Exit(0)
+                }
                 if a1 == "climit" {
                         calculateLimit()
                         os.Exit(0)
@@ -222,13 +233,15 @@ func insertCandles(exchange string, pair string, interval string, timest time.Ti
 
 func insertStats() {
 	var advicePeriod int64 = 7 * 24
+        var intv string = "'168 hours'"
 
 	parm,err := getParms("AdvicePeriod")
 	if err == nil {
 		advicePeriod = parm.intp
-	}
+		intv = fmt.Sprintf("'%d hours'",advicePeriod)
+	} 
 
-	fmt.Println("Insert statistics")
+	fmt.Printf("Insert statistics %s\n",intv)
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
         db, err := sql.Open("postgres", psqlconn)
@@ -241,10 +254,10 @@ func insertStats() {
 	(select pair, min(close) as min, avg(close) as avg, max(close) as max, count(close) as count,
 	(max(close) - min(close)) * 80 / min(close) as potwin
 	from yourcandle 
-	where "timestamp" > current_timestamp - interval '%1 hours'
+	where "timestamp" > current_timestamp - interval ` + intv +  `
 	group by pair
 	order by pair);`
-        _, err = db.Exec(sqlStatement,advicePeriod)
+        _, err = db.Exec(sqlStatement)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -539,6 +552,7 @@ func sendTelegram(){
  			case update := <-updates:
   				fmt.Printf("%v [%s] %s\n", time.Now().String(), update.Message.From.UserName, update.Message.Text)
                 		insertParms("ChatID", update.Message.Chat.ID, 0, "", time.Now(), time.Now(), time.Now())
+				argParts := strings.Split(update.Message.Text, " ")
 				if  update.Message.Text == "Nobuyinfo" {
                                 	insertParms("Nobuyinfo", 0, 0, "", time.Now(), time.Now(), time.Now())
 					mess = "command successful"
@@ -554,6 +568,18 @@ func sendTelegram(){
                                 if  update.Message.Text == "Sellinfo" {
 					deleteParms("Nosellinfo")
                                         mess = "command successful"
+                                }
+                                if  argParts[0] == "Adviceperiod" {
+                                  //      deleteParms("Nosellinfo")
+					period, err := strconv.Atoi(argParts[1])
+					if err == nil {
+						fmt.Println(period)
+						deleteParms("AdvicePeriod")
+ 						insertParms("AdvicePeriod", int64(period), 0, "", time.Now(), time.Now(), time.Now())
+						mess = "command successful"
+					} else {
+                                        	mess = "command failed"
+					}
                                 }
 				if  mess != "" {
                 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, mess)
@@ -599,9 +625,10 @@ func read_config() {
 func myUsage() {
      fmt.Printf("Usage: %s argument\n", os.Args[0])
      fmt.Println("Arguments:")
-     fmt.Println("cron        Do regular work")
-     fmt.Println("climit      Calculate new limits")
-     fmt.Println("telegram    Start telegram daemon")
+     fmt.Println("cron         Do regular work")
+     fmt.Println("climit       Calculate new limits")
+     fmt.Println("telegram     Start telegram daemon")
+     fmt.Println("updatestats  Update statistics")
 }
 
 func CheckError(err error) {
