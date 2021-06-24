@@ -221,6 +221,13 @@ func insertCandles(exchange string, pair string, interval string, timest time.Ti
 }
 
 func insertStats() {
+	var advicePeriod int64 = 7 * 24
+
+	parm,err := getParms("AdvicePeriod")
+	if err == nil {
+		advicePeriod = parm.intp
+	}
+
 	fmt.Println("Insert statistics")
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
@@ -234,10 +241,10 @@ func insertStats() {
 	(select pair, min(close) as min, avg(close) as avg, max(close) as max, count(close) as count,
 	(max(close) - min(close)) * 80 / min(close) as potwin
 	from yourcandle 
-	where "timestamp" > current_timestamp - interval '7 days'
+	where "timestamp" > current_timestamp - interval '%1 hours'
 	group by pair
 	order by pair);`
-        _, err = db.Exec(sqlStatement)
+        _, err = db.Exec(sqlStatement,advicePeriod)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -318,7 +325,8 @@ func calculateLimit() {
         then (min + (max - min)/10)
         else (max - (max - min)/10)
         end as limit
-        from yourlimits)
+        from yourlimits
+	)
         UPDATE yourlimits l
         SET "limit" = subquery.limit
         FROM subquery
@@ -606,6 +614,7 @@ func trend7(pair string) {
         var wr bool = false
 	var tm1 int64
 	var coeff float64
+	var cls float64
 
         fmt.Printf("Calculate trend7 %v\n",pair)
 
@@ -642,7 +651,6 @@ func trend7(pair string) {
         for rows.Next(){
                 var tmstamp time.Time
 		var tmu int64
-                var cls float64
                 if err := rows.Scan(&tmstamp, &cls); err != nil {
                         fmt.Println(err)
                 }
@@ -668,7 +676,7 @@ func trend7(pair string) {
                 fmt.Printf("Regression formula:\n%v\n", r.Formula)
                 fmt.Printf("Coeff: %f\n", r.Coeff(0))
                 fmt.Printf("Coeff: %f\n", r.Coeff(1))
-                coeff = r.Coeff(1)
+                coeff = r.Coeff(1) * 360000 / cls
                 sqlStatement = `
                 UPDATE yourlimits
                 SET trend7 = $1
@@ -684,6 +692,7 @@ func trend24(pair string) {
         var wr bool = false
         var tm1 int64
 	var coeff float64
+	var cls float64
 
         fmt.Printf("Calculate trend24 %v\n",pair)
 
@@ -720,7 +729,6 @@ func trend24(pair string) {
         for rows.Next(){
                 var tmstamp time.Time
                 var tmu int64
-                var cls float64
                 if err := rows.Scan(&tmstamp, &cls); err != nil {
                         fmt.Println(err)
                 }
@@ -746,7 +754,7 @@ func trend24(pair string) {
                 fmt.Printf("Regression formula:\n%v\n", r.Formula)
                 fmt.Printf("Coeff: %f\n", r.Coeff(0))
                 fmt.Printf("Coeff: %f\n", r.Coeff(1))
-                coeff = r.Coeff(1)
+                coeff = r.Coeff(1) * 360000 / cls
                 sqlStatement = `
                 UPDATE yourlimits
                 SET trend24 = $1
@@ -762,6 +770,7 @@ func trend4(pair string) {
 	var wr bool = false
         var tm1 int64
 	var coeff float64
+	var cls float64
 
         fmt.Printf("Calculate trend4 %v\n",pair)
 
@@ -792,7 +801,6 @@ func trend4(pair string) {
         for rows.Next(){
                 var tmstamp time.Time
                 var tmu int64
-                var cls float64
                 if err := rows.Scan(&tmstamp, &cls); err != nil {
                         fmt.Println(err)
                 }
@@ -818,7 +826,7 @@ func trend4(pair string) {
                 fmt.Printf("Regression formula:\n%v\n", r.Formula)
                 fmt.Printf("Coeff: %f\n", r.Coeff(0))
                 fmt.Printf("Coeff: %f\n", r.Coeff(1))
-		coeff = r.Coeff(1)
+		coeff = r.Coeff(1) * 360000 / cls
 	        sqlStatement = `
         	UPDATE yourlimits 
         	SET trend4 = $1
