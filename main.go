@@ -333,15 +333,13 @@ func calculateLimit() {
         with subquery as (
         select
         pair,
-        case
-        when (min + (max - min)/10) > current
-        then (min + (max - min)/10)
-        else (max - (max - min)/10)
-        end as limit
+        (min + (max - min)/10) as limitbuy,
+        (max - (max - min)/10) as limitsell
         from yourlimits
 	)
         UPDATE yourlimits l
-        SET "limit" = subquery.limit
+        SET "limitbuy" = subquery.limitbuy,
+	    "limitsell" = subquery.limitsell
         FROM subquery
         WHERE l.pair = subquery.pair;`
         _, err = db.Exec(sqlStatement)
@@ -436,7 +434,7 @@ func getAdvice(advice string) {
         defer db.Close()
 
         sqlStatement := `
-        select pair, "limit"  from yourlimits
+        select pair, "limitbuy", "limitsell"  from yourlimits
         where advice = $1;`
 
         rows, err := db.Query(sqlStatement, advice)
@@ -447,12 +445,13 @@ func getAdvice(advice string) {
 
 	for rows.Next(){
 		var pair string
-		var limit float64
-		if err := rows.Scan(&pair, &limit); err != nil {
+		var limitbuy float64
+		var limitsell float64
+		if err := rows.Scan(&pair, &limitbuy, &limitsell); err != nil {
 			fmt.Println(err)
 		}
-		fmt.Printf("%v - %f\n", pair, limit)
-		_, err := f.WriteString(fmt.Sprintf("%v %v at %f|",advice,pair,limit))
+		fmt.Printf("%v - %f - %f\n", pair, limitbuy, limitsell)
+		_, err := f.WriteString(fmt.Sprintf("%v %v at %f - %f|",advice,pair,limitbuy,limitsell))
 		wr = true
 		if err != nil {
 			fmt.Println(err)
