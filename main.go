@@ -93,6 +93,7 @@ func main() {
 			calculateAdvice()
 			calculateLimit()
 			calculateTrends()
+			readAccount()
 			sendAdvice()
 			os.Exit(0)
         	}
@@ -116,6 +117,10 @@ func main() {
                 }
                 if a1 == "advice" {
                         sendAdvice()
+                        os.Exit(0)
+                }
+                if a1 == "account" {
+                        readAccount()
                         os.Exit(0)
                 }
                 if a1 == "trend4" {
@@ -213,6 +218,28 @@ func getCandles() {
 	}
 }
 
+func readAccount() {
+	var cur string
+
+	output := getAccount()
+	str := string(output)
+	lines := strings.Split(str, "\n")
+	for _, value := range lines {
+		value = strings.TrimSpace(value)
+		words := strings.Split(value, " ")
+		if strings.Contains(words[0], "currency"){
+			cur = strings.Trim(words[1], "\",")
+		}
+                if strings.Contains(words[0], "total"){
+                        tot := strings.Trim(words[1], "\",")
+			if total, err := strconv.ParseFloat(tot, 64); err == nil {
+    				fmt.Printf("Curr: %s, Total: %f\n",cur,total)
+				storeAccount("binance", cur, total)
+			}
+                }
+	}
+}
+
 func insertCandles(exchange string, pair string, interval string, timest time.Time, open float64, high float64, low float64,
                    close float64, volume float64, asset string) {
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
@@ -230,6 +257,35 @@ func insertCandles(exchange string, pair string, interval string, timest time.Ti
   		fmt.Printf("SQL error: %v\n",err)
 	}
 }
+
+func storeAccount(exchange string, currency string, amount float64) {
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        UPDATE youraccount
+	set amount = $1
+        where exchange = $2 and currency = $3`
+        info, err := db.Exec(sqlStatement, amount, exchange, currency)
+	count, err := info.RowsAffected()
+    	if err != nil {
+        	panic(err)
+    	}
+        if count == 0 { 
+	        sqlStatement := `
+        	INSERT INTO youraccount (exchange, currency, amount)
+        	VALUES ($1, $2, $3)`
+        	_, err = db.Exec(sqlStatement, exchange, currency, amount)
+        	if err != nil {
+                	fmt.Printf("SQL error: %v\n",err)
+        	}
+        }
+}
+
 
 func insertStats() {
 	var advicePeriod int64 = 7 * 24
@@ -373,6 +429,15 @@ func getPair(p string, s string, e string) []byte {
                 fmt.Printf("Command finished with error: %v", err)
         }
 	return out
+}
+
+func getAccount() []byte {
+        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getaccountinfo",
+        "--exchange","binance","--asset","SPOT").Output()
+        if err != nil {
+                fmt.Printf("Command finished with error: %v", err)
+        }
+        return out
 }
 
 func insertParms(key string, intp int64, floatp float64, stringp string, datep time.Time, timep time.Time, timestampp time.Time ) {
