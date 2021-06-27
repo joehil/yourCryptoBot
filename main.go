@@ -45,6 +45,7 @@ var pipeFile = "/tmp/yourpipe"
 var do_trace bool = true
 
 var pairs []string
+var tradepairs []string
 
 var gctcmd string
 
@@ -65,6 +66,23 @@ type Parm struct {
 	datep time.Time
 	timep time.Time
 	timestampp time.Time
+}
+
+
+type Order struct {
+        exchange string
+        id string
+        base_currency string
+        quote_currency string
+        asset string
+        order_side string
+        order_type string
+        creation_time float64
+        update_time float64
+        status string
+        price float64
+        amount float64
+        open_volume float64
 }
 
 func main() {
@@ -94,6 +112,7 @@ func main() {
 			calculateLimit()
 			calculateTrends()
 			readAccount()
+			readOrders()
 			sendAdvice()
 			os.Exit(0)
         	}
@@ -123,8 +142,8 @@ func main() {
                         readAccount()
                         os.Exit(0)
                 }
-                if a1 == "trend4" {
-                        trend4("BNB-EUR")
+                if a1 == "orders" {
+                        readOrders()
                         os.Exit(0)
                 }
                 if a1 == "trend7" {
@@ -286,6 +305,40 @@ func storeAccount(exchange string, currency string, amount float64) {
         }
 }
 
+func storeOrder(exchange string,id string,pair string,asset string,side string,otype string,
+		timest float64,status string,price float64,amount float64) {
+
+	var tst time.Time = time.Unix(int64(timest), 0)
+
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        UPDATE yourorder
+        set pair = $3, asset = $4, price = $5, amount = $6, side = $7, timestamp = $8, order_type = $9, status = $10
+        where exchange = $1 and id = $2`
+        info, err := db.Exec(sqlStatement, exchange, id, pair, asset, price ,amount, side, tst, otype, status)
+        if err != nil {
+                panic(err)
+        }
+        count, err := info.RowsAffected()
+        if err != nil {
+                panic(err)
+        }
+        if count == 0 {
+                sqlStatement := `
+                INSERT INTO yourorder (exchange, id, pair, asset, price ,amount, side, timestamp, order_type, status)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8 ,$9, $10)`
+                _, err = db.Exec(sqlStatement, exchange, id, pair, asset, price, amount, side, tst, otype, status)
+                if err != nil {
+                        fmt.Printf("SQL error: %v\n",err)
+                }
+        }
+}
 
 func insertStats() {
 	var advicePeriod int64 = 7 * 24
@@ -434,6 +487,15 @@ func getPair(p string, s string, e string) []byte {
 func getAccount() []byte {
         out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getaccountinfo",
         "--exchange","binance","--asset","SPOT").Output()
+        if err != nil {
+                fmt.Printf("Command finished with error: %v", err)
+        }
+        return out
+}
+
+func getOrders(pair string) []byte {
+        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getorders",
+        "--exchange","binance","--asset","SPOT","--pair",pair).Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
         }
@@ -664,6 +726,7 @@ func read_config() {
         }
 
         pairs = viper.GetStringSlice("pairs")
+        tradepairs = viper.GetStringSlice("tradepairs")
 
         do_trace = viper.GetBool("do_trace")
 
@@ -686,11 +749,49 @@ func read_config() {
 	}
 }
 
+func readOrders() {
+        var pack map[string]interface{}
+	var o Order
+
+        for i, v := range tradepairs {
+                fmt.Printf("%d, Value: %v\n", i, v )
+		out := getOrders(v)
+
+                err := json.Unmarshal(out, &pack)
+                if err != nil { // Handle JSON errors
+                        fmt.Printf("JSON error: %v\n", err)
+                        fmt.Printf("JSON input: %v\n",string(out))
+                        continue
+                }
+		orders := pack["orders"].([]interface{})
+                for _, order := range orders {
+			ord := order.(map[string]interface{})
+			o.exchange = ord["exchange"].(string)
+                        o.id = ord["id"].(string)
+                        o.base_currency = ord["base_currency"].(string)
+                        o.quote_currency = ord["quote_currency"].(string)
+                        o.asset = ord["asset_type"].(string)
+                        o.order_side = ord["order_side"].(string) 
+                        o.order_type = ord["order_type"].(string)
+                        o.creation_time = ord["creation_time"].(float64)
+                        o.update_time = ord["update_time"].(float64)
+                        o.status = ord["status"].(string)
+                        o.price = ord["price"].(float64)
+                        o.amount = ord["amount"].(float64)
+                        o.open_volume = ord["open_volume"].(float64)
+                        fmt.Println(o)
+
+			storeOrder(o.exchange,o.id,o.base_currency+"-"+o.quote_currency,o.asset,o.order_side,o.order_type,o.update_time,o.status,o.price,o.amount) 
+		} 
+        }
+}
+
 func myUsage() {
      fmt.Printf("Usage: %s argument\n", os.Args[0])
      fmt.Println("Arguments:")
      fmt.Println("cron         Do regular work")
      fmt.Println("climit       Calculate new limits")
+     fmt.Println("orders       Get open orders")
      fmt.Println("telegram     Start telegram daemon")
      fmt.Println("updatestats  Update statistics")
 }
