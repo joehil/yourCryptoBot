@@ -68,7 +68,6 @@ type Parm struct {
 	timestampp time.Time
 }
 
-
 type Order struct {
         exchange string
         id string
@@ -83,6 +82,7 @@ type Order struct {
         price float64
         amount float64
         open_volume float64
+	cost float64
 }
 
 func main() {
@@ -111,8 +111,10 @@ func main() {
 			calculateAdvice()
 			calculateLimit()
 			calculateTrends()
+			deleteAccounts()
 			readAccount()
 			readOrders()
+			processOrders()
 			sendAdvice()
 			os.Exit(0)
         	}
@@ -126,7 +128,7 @@ func main() {
                         sendAdvice()
                         os.Exit(0)
                 }
-                if a1 == "climit" {
+                if a1 == "limits" {
                         calculateLimit()
                         os.Exit(0)
                 }
@@ -139,11 +141,13 @@ func main() {
                         os.Exit(0)
                 }
                 if a1 == "account" {
+			deleteAccounts()
                         readAccount()
                         os.Exit(0)
                 }
                 if a1 == "orders" {
                         readOrders()
+			processOrders()
                         os.Exit(0)
                 }
                 if a1 == "trend7" {
@@ -199,6 +203,7 @@ func getCandles() {
 		fmt.Printf("Index: %d, Value: %v\n", i, v )
 		out:=getPair(v,limit1+":00",limit2+":00")
 		if out == nil {
+			fmt.Println("Result empty")
 			continue
 		}
 		err := json.Unmarshal(out, &cand)
@@ -474,6 +479,23 @@ func deleteStats() {
         }
 }
 
+func deleteAccounts() {
+        fmt.Println("Delete accounts")
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        delete from youraccount;`
+        _, err = db.Exec(sqlStatement)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+}
+
 func getPair(p string, s string, e string) []byte {
         out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "gethistoriccandlesextended",
         "-e","binance","-a","SPOT","-p",p,"-i","900",
@@ -487,6 +509,15 @@ func getPair(p string, s string, e string) []byte {
 func getAccount() []byte {
         out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getaccountinfo",
         "--exchange","binance","--asset","SPOT").Output()
+        if err != nil {
+                fmt.Printf("Command finished with error: %v", err)
+        }
+        return out
+}
+
+func getOrder(pair string,id string) []byte {
+        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getorder",
+        "--exchange","binance","--asset","SPOT","--pair",pair,"--order_id",id).Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
         }
@@ -757,6 +788,11 @@ func readOrders() {
                 fmt.Printf("%d, Value: %v\n", i, v )
 		out := getOrders(v)
 
+		if len(string(out)) < 10 {
+			fmt.Println("No open order")
+			continue
+		}
+
                 err := json.Unmarshal(out, &pack)
                 if err != nil { // Handle JSON errors
                         fmt.Printf("JSON error: %v\n", err)
@@ -790,7 +826,7 @@ func myUsage() {
      fmt.Printf("Usage: %s argument\n", os.Args[0])
      fmt.Println("Arguments:")
      fmt.Println("cron         Do regular work")
-     fmt.Println("climit       Calculate new limits")
+     fmt.Println("limits       Calculate new limits")
      fmt.Println("orders       Get open orders")
      fmt.Println("telegram     Start telegram daemon")
      fmt.Println("updatestats  Update statistics")
@@ -1036,4 +1072,63 @@ func calculateTrends() {
 		trend24(v)
 		trend4(v)
 	}
+}
+
+func processOrders() {
+        fmt.Println("Process orders")
+
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        select pair, id  from yourorder
+        where status = 'NEW'
+        order by "timestamp";`
+
+        rows, err := db.Query(sqlStatement)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+        defer rows.Close()
+
+        for rows.Next(){
+                var id string
+		var pair string
+        	var order map[string]interface{}
+		var o Order
+                if err := rows.Scan(&pair, &id); err != nil {
+                        fmt.Println(err)
+                } else {
+			fmt.Printf("Pair: %s, OrderID: %s\n",pair, id)
+			out :=getOrder(pair, id)
+                	err := json.Unmarshal(out, &order)
+                	if err != nil { // Handle JSON errors
+                        	fmt.Printf("JSON error: %v\n", err)
+                        	fmt.Printf("JSON input: %v\n",string(out))
+                        	continue
+                	}
+			o.exchange = strings.ToLower(order["exchange"].(string))
+                        o.id = order["id"].(string)
+                        o.base_currency = order["base_currency"].(string)
+                        o.quote_currency = order["quote_currency"].(string)
+                        o.asset = order["asset_type"].(string)
+                        o.order_side = order["order_side"].(string) 
+                        o.order_type = order["order_type"].(string)
+                        o.creation_time = order["creation_time"].(float64)
+                        o.update_time = order["update_time"].(float64)
+                        o.status = order["status"].(string)
+                        o.price = order["price"].(float64)
+                        o.amount = order["amount"].(float64)
+			if order["cost"] != nil {
+                        	o.cost = order["cost"].(float64)
+			}
+                        fmt.Println(o)
+
+			storeOrder(o.exchange,o.id,o.base_currency+"-"+o.quote_currency,o.asset,o.order_side,o.order_type,o.update_time,o.status,o.price,o.amount) 
+		}
+        }
 }
