@@ -115,6 +115,7 @@ func main() {
 			readAccount()
 			readOrders()
 			processOrders()
+			deleteOrders()
 			sendAdvice()
 			os.Exit(0)
         	}
@@ -148,6 +149,7 @@ func main() {
                 if a1 == "orders" {
                         readOrders()
 			processOrders()
+			deleteOrders()
                         os.Exit(0)
                 }
                 if a1 == "trend7" {
@@ -490,6 +492,24 @@ func deleteAccounts() {
 
         sqlStatement := `
         delete from youraccount;`
+        _, err = db.Exec(sqlStatement)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+}
+
+func deleteOrders() {
+        fmt.Println("Delete orders")
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        delete from yourorder
+	where status = 'CANCELLED';`
         _, err = db.Exec(sqlStatement)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
