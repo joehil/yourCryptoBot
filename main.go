@@ -284,6 +284,23 @@ func insertCandles(exchange string, pair string, interval string, timest time.Ti
 	}
 }
 
+func insertPositions(exchange string, pair string, trtype string, timest time.Time, rate float64, amount float64) {
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        INSERT INTO yourposition (exchange, pair, trtype, timestamp, rate, amount)
+        VALUES ($1, $2, $3, $4, $5, $6)`
+        _, err = db.Exec(sqlStatement, exchange, pair, trtype, timest, rate, amount)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+}
+
 func storeAccount(exchange string, currency string, amount float64) {
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
@@ -1148,7 +1165,11 @@ func processOrders() {
 			}
                         fmt.Println(o)
 
-			storeOrder(o.exchange,o.id,o.base_currency+"-"+o.quote_currency,o.asset,o.order_side,o.order_type,o.update_time,o.status,o.price,o.amount) 
+			storeOrder(o.exchange,o.id,o.base_currency+"-"+o.quote_currency,o.asset,o.order_side,o.order_type,o.update_time,o.status,o.price,o.amount)
+			
+			if o.status == "FILLED" {
+				insertPositions(o.exchange,o.base_currency+"-"+o.quote_currency,o.order_side,time.Unix(int64(o.update_time), 0),o.price,o.amount)
+			} 
 		}
         }
 }
