@@ -130,6 +130,10 @@ func main() {
                         calculateLimit()
                         os.Exit(0)
                 }
+                if a1 == "doorder" {
+                        doOrder()
+                        os.Exit(0)
+                }
                 if a1 == "telegram" {
                         sendTelegram()
                         os.Exit(0)
@@ -378,12 +382,12 @@ func insertStats() {
         sqlStatement := `
 	insert into yourlimits (pair, min,avg,max,count,potwin)
 	(select pair, min(close) as min, avg(close) as avg, max(close) as max, count(close) as count,
-	(max(close) - min(close)) * 80 / min(close) as potwin
+	(max(close) - min(close)) * $1 / min(close) as potwin
 	from yourcandle 
 	where "timestamp" > current_timestamp - interval ` + intv +  `
 	group by pair
 	order by pair);`
-        _, err = db.Exec(sqlStatement)
+        _, err = db.Exec(sqlStatement,limit_depth)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -415,6 +419,8 @@ func updateStats() {
 }
 
 func calculateLimit() {
+	var depth int = (100 - limit_depth)/2
+
         fmt.Println("Calculate limit")
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
@@ -427,8 +433,8 @@ func calculateLimit() {
         with subquery as (
         select
         pair,
-        (min + (max - min)/10) as limitbuy,
-        (max - (max - min)/10) as limitsell
+        (min + (max - min)/$1) as limitbuy,
+        (max - (max - min)/$1) as limitsell
         from yourlimits
 	)
         UPDATE yourlimits l
@@ -436,7 +442,7 @@ func calculateLimit() {
 	    "limitsell" = subquery.limitsell
         FROM subquery
         WHERE l.pair = subquery.pair;`
-        _, err = db.Exec(sqlStatement)
+        _, err = db.Exec(sqlStatement,depth)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -529,6 +535,21 @@ func getOrders(pair string) []byte {
                 fmt.Printf("Command finished with error: %v", err)
         }
         return out
+}
+
+func submitOrder(pair string,side string,otype string,amount float64,price float64,clientid string) []byte {
+        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "submitorder",
+        "--exchange","binance","--asset","SPOT","--pair",pair,"--side",side,"--type",otype,
+	"--amount",fmt.Sprintf("%f",amount),"--price",fmt.Sprintf("%f",price),"--client_id",clientid).Output()
+        if err != nil {
+                fmt.Printf("Command finished with error: %v", err)
+        }
+        return out
+}
+
+func doOrder() {
+	out := submitOrder("DOT-EUR","BUY","LIMIT",3.6,11,"jhtest")
+	fmt.Println(string(out))
 }
 
 func insertParms(key string, intp int64, floatp float64, stringp string, datep time.Time, timep time.Time, timestampp time.Time ) {
@@ -659,24 +680,7 @@ func sendTelegram(){
   				fmt.Printf("%v [%s] %s\n", time.Now().String(), update.Message.From.UserName, update.Message.Text)
                 		insertParms("ChatID", update.Message.Chat.ID, 0, "", time.Now(), time.Now(), time.Now())
 				argParts := strings.Split(update.Message.Text, " ")
-				if  update.Message.Text == "Nobuyinfo" {
-                                	insertParms("Nobuyinfo", 0, 0, "", time.Now(), time.Now(), time.Now())
-					mess = "command successful"
-				}
-                                if  update.Message.Text == "Nosellinfo" {
-                                        insertParms("Nosellinfo", 0, 0, "", time.Now(), time.Now(), time.Now())
-                                        mess = "command successful"
-                                }
-                                if  update.Message.Text == "Buyinfo" {
-					deleteParms("Nobuyinfo")
-                                        mess = "command successful"
-                                }
-                                if  update.Message.Text == "Sellinfo" {
-					deleteParms("Nosellinfo")
-                                        mess = "command successful"
-                                }
                                 if  argParts[0] == "Adviceperiod" {
-                                  //      deleteParms("Nosellinfo")
 					period, err := strconv.Atoi(argParts[1])
 					if err == nil {
 						fmt.Println(period)
@@ -686,6 +690,17 @@ func sendTelegram(){
 					} else {
                                         	mess = "command failed"
 					}
+                                }
+                                if  argParts[0] == "Limitdepth" {
+                                        period, err := strconv.Atoi(argParts[1])
+                                        if err == nil {
+                                                fmt.Println(period)
+                                                deleteParms("limit_depth")
+                                                insertParms("limit_depth", int64(period), 0, "", time.Now(), time.Now(), time.Now())
+                                                mess = "command successful"
+                                        } else {
+                                                mess = "command failed"
+                                        }
                                 }
 				if  mess != "" {
                 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, mess)
