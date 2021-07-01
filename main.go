@@ -57,6 +57,7 @@ var pgpassword string
 var pgdb string
 
 var tbtoken string
+var limit_depth int
 
 type Parm struct {
 	key string
@@ -108,7 +109,6 @@ func main() {
 			deleteStats()
 			insertStats()
 			updateStats()
-			calculateAdvice()
 			calculateLimit()
 			calculateTrends()
 			deleteAccounts()
@@ -116,17 +116,14 @@ func main() {
 			readOrders()
 			processOrders()
 			deleteOrders()
-			sendAdvice()
 			os.Exit(0)
         	}
                 if a1 == "updatestats" {
                         deleteStats()
                         insertStats()
                         updateStats()
-                        calculateAdvice()
                         calculateLimit()
                         calculateTrends()
-                        sendAdvice()
                         os.Exit(0)
                 }
                 if a1 == "limits" {
@@ -135,10 +132,6 @@ func main() {
                 }
                 if a1 == "telegram" {
                         sendTelegram()
-                        os.Exit(0)
-                }
-                if a1 == "advice" {
-                        sendAdvice()
                         os.Exit(0)
                 }
                 if a1 == "account" {
@@ -421,38 +414,6 @@ func updateStats() {
         }
 }
 
-func calculateAdvice() {
-        fmt.Println("Calculate advice")
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
-
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
-
-        defer db.Close()
-
-        sqlStatement := `
-	with subquery as (
-	select
-	pair,
-	case
-	when (max - (max - min)/15) < current
-	then 'sell'
-	when (min + (max - min)/15) > current
-	then 'buy'
-	else 'no action'
-	end as advice
-	from yourlimits
-	)
-        UPDATE yourlimits l
-        SET advice = subquery.advice
-        FROM subquery
-        WHERE l.pair = subquery.pair;`
-        _, err = db.Exec(sqlStatement)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-}
-
 func calculateLimit() {
         fmt.Println("Calculate limit")
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
@@ -610,66 +571,18 @@ func getParms(key string) (parms Parm, err error) {
 	return
 }
 
-func getAdvice(advice string) {
-	var wr bool = false
-
-        fmt.Printf("Get advice %v\n",advice)
-
+func submitTelegram(msg string) {
         f, err := os.OpenFile(pipeFile, os.O_WRONLY|syscall.O_NONBLOCK, 0644)
         if err != nil {
                 fmt.Printf("open: %v\n", err)
         }
         defer f.Close()
 
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+        _, err = f.WriteString(msg+"\n")
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
-
-        defer db.Close()
-
-        sqlStatement := `
-        select pair, "limitbuy", "limitsell"  from yourlimits
-        where advice = $1;`
-
-        rows, err := db.Query(sqlStatement, advice)
         if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
+	        fmt.Println(err)
         }
-	defer rows.Close()
-
-	for rows.Next(){
-		var pair string
-		var limitbuy float64
-		var limitsell float64
-		if err := rows.Scan(&pair, &limitbuy, &limitsell); err != nil {
-			fmt.Println(err)
-		}
-		fmt.Printf("%v - %f - %f\n", pair, limitbuy, limitsell)
-		_, err := f.WriteString(fmt.Sprintf("%v %v at %f - %f|",advice,pair,limitbuy,limitsell))
-		wr = true
-		if err != nil {
-			fmt.Println(err)
-		}
-	}
-	if err := rows.Err(); err != nil {
-    		fmt.Println(err)
-	}
-	if wr {
-                f.WriteString("\n")
-	}
-}
-
-func sendAdvice() {
-	_, err := getParms("Nobuyinfo")
-	if err != nil {
-		getAdvice("buy")
-	}
-        _, err = getParms("Nosellinfo")
-        if err != nil {
-		getAdvice("sell")
-	}
-//	getAdvice("no action")
 }
 
 func deleteParms(key string) (parms Parm, err error) {
@@ -691,7 +604,6 @@ func deleteParms(key string) (parms Parm, err error) {
         }
         return
 }
-
 
 func sendTelegram(){
 	var mess string
@@ -809,8 +721,20 @@ func read_config() {
 
 	tbtoken = viper.GetString("tbtoken")
 
+	limit_depth = viper.GetInt("limit_depth")
+
+        parm,err := getParms("limit_depth")
+        if err == nil {
+                limit_depth = int(parm.intp)
+        }
+
+	if limit_depth > 90 || limit_depth < 10 {
+		limit_depth = 80
+	}
+
 	if do_trace {
 		fmt.Println("do_trace: ",do_trace)
+                fmt.Printf("limit_depth: %d\n",limit_depth)
 		for i, v := range pairs {
 			fmt.Printf("Index: %d, Value: %v\n", i, v )
 		}
@@ -883,12 +807,6 @@ func trend7(pair string) {
 
         fmt.Printf("Calculate trend7 %v\n",pair)
 
-        f, err := os.OpenFile(pipeFile, os.O_WRONLY|syscall.O_NONBLOCK, 0644)
-        if err != nil {
-                fmt.Printf("open: %v\n", err)
-        }
-        defer f.Close()
-
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
         db, err := sql.Open("postgres", psqlconn)
@@ -960,12 +878,6 @@ func trend24(pair string) {
 	var cls float64
 
         fmt.Printf("Calculate trend24 %v\n",pair)
-
-        f, err := os.OpenFile(pipeFile, os.O_WRONLY|syscall.O_NONBLOCK, 0644)
-        if err != nil {
-                fmt.Printf("open: %v\n", err)
-        }
-        defer f.Close()
 
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
@@ -1167,9 +1079,14 @@ func processOrders() {
 
 			storeOrder(o.exchange,o.id,o.base_currency+"-"+o.quote_currency,o.asset,o.order_side,o.order_type,o.update_time,o.status,o.price,o.amount)
 			
-			if o.status == "FILLED" {
+			if o.status == "FILLED" && o.order_side == "BUY" {
 				insertPositions(o.exchange,o.base_currency+"-"+o.quote_currency,o.order_side,time.Unix(int64(o.update_time), 0),o.price,o.amount)
-			} 
+                        	submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" bought")
+			}
+                        if o.status == "FILLED" && o.order_side == "SELL" {
+            //                    insertPositions(o.exchange,o.base_currency+"-"+o.quote_currency,o.order_side,time.Unix(int64(o.update_time), 0),o.price,o.amount)
+                                submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" sold")
+                        }
 		}
         }
 }
