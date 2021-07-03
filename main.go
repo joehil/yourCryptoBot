@@ -58,6 +58,7 @@ var pgdb string
 
 var tbtoken string
 var limit_depth int
+var invest_amount int
 
 type Parm struct {
 	key string
@@ -131,7 +132,7 @@ func main() {
                         os.Exit(0)
                 }
                 if a1 == "doorder" {
-                        doOrder()
+                        buyOrders()
                         os.Exit(0)
                 }
                 if a1 == "telegram" {
@@ -540,16 +541,20 @@ func getOrders(pair string) []byte {
 func submitOrder(pair string,side string,otype string,amount float64,price float64,clientid string) []byte {
         out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "submitorder",
         "--exchange","binance","--asset","SPOT","--pair",pair,"--side",side,"--type",otype,
-	"--amount",fmt.Sprintf("%f",amount),"--price",fmt.Sprintf("%f",price),"--client_id",clientid).Output()
+	"--amount",fmt.Sprintf("%.3f",amount),"--price",fmt.Sprintf("%.3f",price),"--client_id",clientid).Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
         }
         return out
 }
 
-func doOrder() {
-	out := submitOrder("DOT-EUR","BUY","LIMIT",3.6,11,"jhtest")
-	fmt.Println(string(out))
+func cancelOrder(pair string,oid string) []byte {
+        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "cancelorder",
+        "--exchange","binance","--asset","SPOT","--pair",pair,"--order_id",oid).Output()
+        if err != nil {
+                fmt.Printf("Command finished with error: %v", err)
+        }
+        return out
 }
 
 func insertParms(key string, intp int64, floatp float64, stringp string, datep time.Time, timep time.Time, timestampp time.Time ) {
@@ -590,6 +595,29 @@ func getParms(key string) (parms Parm, err error) {
                 fmt.Printf("SQL error: %v\n",err)
         }
 	return
+}
+
+func getPrice(pair string) (price float64, err error) {
+        fmt.Printf("Get price %v\n",pair)
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+		select limitbuy from yourlimits y 
+		where pair = $1
+		and y.pair not in 
+		(select pair from yourposition p
+		where pair = $1);`
+
+        err = db.QueryRow(sqlStatement, pair).Scan(&price)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+        return
 }
 
 func submitTelegram(msg string) {
@@ -737,6 +765,7 @@ func read_config() {
 	tbtoken = viper.GetString("tbtoken")
 
 	limit_depth = viper.GetInt("limit_depth")
+        invest_amount = viper.GetInt("invest_amount")
 
         parm,err := getParms("limit_depth")
         if err == nil {
@@ -747,9 +776,14 @@ func read_config() {
 		limit_depth = 80
 	}
 
+        if invest_amount > 500 || limit_depth < 50 {
+                invest_amount = 100
+        }
+
 	if do_trace {
 		fmt.Println("do_trace: ",do_trace)
                 fmt.Printf("limit_depth: %d\n",limit_depth)
+                fmt.Printf("invest_amount: %d\n",invest_amount)
 		for i, v := range pairs {
 			fmt.Printf("Index: %d, Value: %v\n", i, v )
 		}
@@ -1103,5 +1137,67 @@ func processOrders() {
                                 submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" sold")
                         }
 		}
+        }
+}
+
+func buyOrders() {
+        var pack map[string]interface{}
+        var resp map[string]interface{}
+        var o Order
+
+        for i, v := range tradepairs {
+                fmt.Printf("%d, Value: %v\n", i, v )
+                out := getOrders(v)
+
+                if len(string(out)) < 10 {
+                        fmt.Println("No open order")
+                        newprice,err := getPrice(v)
+                        if err != nil {
+	                        fmt.Printf("Price error: %v\n", err)
+        	                continue
+                        }
+                        fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
+			fmt.Println(fmt.Sprintf("%.3f",newprice))
+                        fmt.Println(fmt.Sprintf("%.3f",float64(invest_amount)/newprice))
+			out := submitOrder(v,"BUY","LIMIT",float64(invest_amount)/newprice,newprice,"automatic-new")
+			fmt.Println(string(out))
+			continue
+                }
+
+                err := json.Unmarshal(out, &pack)
+                if err != nil { // Handle JSON errors
+                        fmt.Printf("JSON error: %v\n", err)
+                        fmt.Printf("JSON input: %v\n",string(out))
+                        continue
+                }
+                orders := pack["orders"].([]interface{})
+                for _, order := range orders {
+                        ord := order.(map[string]interface{})
+                        o.exchange = ord["exchange"].(string)
+                        o.id = ord["id"].(string)
+                        o.order_side = ord["order_side"].(string)
+                        o.price = ord["price"].(float64)
+			if o.order_side == "BUY" {
+	                        fmt.Printf("E: %v, ID: %v, P: %f\n",o.exchange,o.id,o.price)
+				out := cancelOrder(v,o.id)
+				fmt.Println(string(out))
+				err := json.Unmarshal(out, &resp)
+		                if err != nil { // Handle JSON errors
+                		        fmt.Printf("JSON error: %v\n", err)
+                        		fmt.Printf("JSON input: %v\n",string(out))
+                        		continue
+                		}
+				status := resp["status"].(string)
+				if status == "success" {
+					fmt.Println(status)
+					newprice,err := getPrice(v)
+	                                if err != nil {
+	                                        fmt.Printf("Price error: %v\n", err)
+                                        	continue
+	                                }
+					fmt.Printf("Price: %f\n",newprice)
+				}
+			}
+                }
         }
 }
