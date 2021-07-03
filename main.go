@@ -60,6 +60,9 @@ var tbtoken string
 var limit_depth int
 var invest_amount int
 
+var amountcomma map[string]string
+var pricecomma map[string]string
+
 type Parm struct {
 	key string
 	intp int64
@@ -539,9 +542,19 @@ func getOrders(pair string) []byte {
 }
 
 func submitOrder(pair string,side string,otype string,amount float64,price float64,clientid string) []byte {
+	var stramount string
+	var strprice string 
+	var aformat string = "%."+amountcomma[strings.ToLower(pair)]+"f"
+        var pformat string = "%."+pricecomma[strings.ToLower(pair)]+"f"
+	
+	stramount = fmt.Sprintf(aformat,amount)
+	strprice = fmt.Sprintf(pformat,price)
+
+	fmt.Printf("A: %s, P: %s\n",stramount,strprice)
+
         out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "submitorder",
         "--exchange","binance","--asset","SPOT","--pair",pair,"--side",side,"--type",otype,
-	"--amount",fmt.Sprintf("%.3f",amount),"--price",fmt.Sprintf("%.3f",price),"--client_id",clientid).Output()
+	"--amount",stramount,"--price",strprice,"--client_id",clientid).Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
         }
@@ -597,7 +610,7 @@ func getParms(key string) (parms Parm, err error) {
 	return
 }
 
-func getPrice(pair string) (price float64, err error) {
+func getBuyPrice(pair string) (price float64, err error) {
         fmt.Printf("Get price %v\n",pair)
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
@@ -764,6 +777,9 @@ func read_config() {
 
 	tbtoken = viper.GetString("tbtoken")
 
+	amountcomma = viper.GetStringMapString("amountcomma")
+        pricecomma = viper.GetStringMapString("pricecomma")
+
 	limit_depth = viper.GetInt("limit_depth")
         invest_amount = viper.GetInt("invest_amount")
 
@@ -784,6 +800,8 @@ func read_config() {
 		fmt.Println("do_trace: ",do_trace)
                 fmt.Printf("limit_depth: %d\n",limit_depth)
                 fmt.Printf("invest_amount: %d\n",invest_amount)
+		fmt.Println(amountcomma)
+                fmt.Println(pricecomma)
 		for i, v := range pairs {
 			fmt.Printf("Index: %d, Value: %v\n", i, v )
 		}
@@ -1151,14 +1169,12 @@ func buyOrders() {
 
                 if len(string(out)) < 10 {
                         fmt.Println("No open order")
-                        newprice,err := getPrice(v)
+                        newprice,err := getBuyPrice(v)
                         if err != nil {
 	                        fmt.Printf("Price error: %v\n", err)
         	                continue
                         }
                         fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
-			fmt.Println(fmt.Sprintf("%.3f",newprice))
-                        fmt.Println(fmt.Sprintf("%.3f",float64(invest_amount)/newprice))
 			out := submitOrder(v,"BUY","LIMIT",float64(invest_amount)/newprice,newprice,"automatic-new")
 			fmt.Println(string(out))
 			continue
@@ -1189,13 +1205,14 @@ func buyOrders() {
                 		}
 				status := resp["status"].(string)
 				if status == "success" {
-					fmt.Println(status)
-					newprice,err := getPrice(v)
+					newprice,err := getBuyPrice(v)
 	                                if err != nil {
 	                                        fmt.Printf("Price error: %v\n", err)
                                         	continue
 	                                }
-					fmt.Printf("Price: %f\n",newprice)
+		                        fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
+                		        out := submitOrder(v,"BUY","LIMIT",float64(invest_amount)/newprice,newprice,"automatic-update")
+                        		fmt.Println(string(out))
 				}
 			}
                 }
