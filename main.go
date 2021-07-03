@@ -27,7 +27,6 @@ import (
 	"os/exec"
 	"fmt"
 	"bufio"
-//	"io"
 	"time"
 	"strings"
 	"strconv"
@@ -136,6 +135,7 @@ func main() {
                 }
                 if a1 == "doorder" {
                         buyOrders()
+			sellOrders()
                         os.Exit(0)
                 }
                 if a1 == "telegram" {
@@ -611,7 +611,7 @@ func getParms(key string) (parms Parm, err error) {
 }
 
 func getBuyPrice(pair string) (price float64, err error) {
-        fmt.Printf("Get price %v\n",pair)
+        fmt.Printf("Get buy price %v\n",pair)
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
         db, err := sql.Open("postgres", psqlconn)
@@ -627,6 +627,28 @@ func getBuyPrice(pair string) (price float64, err error) {
 		where pair = $1);`
 
         err = db.QueryRow(sqlStatement, pair).Scan(&price)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+        return
+}
+
+func getSellPrice(pair string) (price float64, amount float64, err error) {
+        fmt.Printf("Get sell price %v\n",pair)
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+                select l.limitsell, p.amount from yourlimits l, yourposition p 
+                where l.pair = $1
+                and p.pair = $1
+		and l.limitsell > p.rate;`
+
+        err = db.QueryRow(sqlStatement, pair).Scan(&price,&amount)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -1163,6 +1185,16 @@ func buyOrders() {
         var resp map[string]interface{}
         var o Order
 
+        parm,err := getParms("DoTrade")
+        if err != nil {
+                fmt.Println("Trades not allowed")
+                return
+        }
+        if parm.intp != 13579 {
+                fmt.Println("Trades not allowed")
+                return
+        }
+
         for i, v := range tradepairs {
                 fmt.Printf("%d, Value: %v\n", i, v )
                 out := getOrders(v)
@@ -1218,3 +1250,75 @@ func buyOrders() {
                 }
         }
 }
+
+func sellOrders() {
+        var pack map[string]interface{}
+        var resp map[string]interface{}
+        var o Order
+
+        parm,err := getParms("DoTrade")
+        if err != nil {
+		fmt.Println("Trades not allowed 1")
+                return
+        }
+        if parm.intp != 13579 {
+                fmt.Println("Trades not allowed 2")
+                return
+        }
+
+        for i, v := range tradepairs {
+                fmt.Printf("%d, Value: %v\n", i, v )
+                out := getOrders(v)
+
+                if len(string(out)) < 10 {
+                        fmt.Println("No open order")
+                        newprice,err := getBuyPrice(v)
+                        if err != nil {
+                                fmt.Printf("Price error: %v\n", err)
+                                continue
+                        }
+                        fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
+                        out := submitOrder(v,"SELL","LIMIT",float64(invest_amount)/newprice,newprice,"automatic-new")
+                        fmt.Println(string(out))
+                        continue
+                }
+
+                err := json.Unmarshal(out, &pack)
+                if err != nil { // Handle JSON errors
+                        fmt.Printf("JSON error: %v\n", err)
+                        fmt.Printf("JSON input: %v\n",string(out))
+                        continue
+                }
+                orders := pack["orders"].([]interface{})
+                for _, order := range orders {
+                        ord := order.(map[string]interface{})
+                        o.exchange = ord["exchange"].(string)
+                        o.id = ord["id"].(string)
+                        o.order_side = ord["order_side"].(string)
+                        o.price = ord["price"].(float64)
+                        if o.order_side == "SELL" {
+                                fmt.Printf("E: %v, ID: %v, P: %f\n",o.exchange,o.id,o.price)
+                                out := cancelOrder(v,o.id)
+                                fmt.Println(string(out))
+                                err := json.Unmarshal(out, &resp)
+                                if err != nil { // Handle JSON errors
+                                        fmt.Printf("JSON error: %v\n", err)
+                                        fmt.Printf("JSON input: %v\n",string(out))
+                                        continue
+                                }
+                                status := resp["status"].(string)
+                                if status == "success" {
+                                        newprice,newamount,err := getSellPrice(v)
+                                        if err != nil {
+                                                fmt.Printf("Price error: %v\n", err)
+                                                continue
+                                        }
+                                        fmt.Printf("Price: %f, Amount: %f\n",newprice,newamount)
+                                        out := submitOrder(v,"SELL","LIMIT",newamount,newprice,"automatic-update")
+                                        fmt.Println(string(out))
+                                }
+                        }
+                }
+        }
+}
+
