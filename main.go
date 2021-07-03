@@ -31,8 +31,13 @@ import (
 	"strings"
 	"strconv"
 	"syscall"
+	"bytes"
+	"image/png"
+	"io/ioutil"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"encoding/json" 
+	"github.com/pquerna/otp"
+	"github.com/pquerna/otp/totp"
 	"github.com/spf13/viper"
 	"github.com/sajari/regression"
     	"database/sql"
@@ -61,6 +66,10 @@ var invest_amount int
 
 var amountcomma map[string]string
 var pricecomma map[string]string
+
+var key_issuer string
+var key_account string
+var key_secret string
 
 type Parm struct {
 	key string
@@ -140,6 +149,18 @@ func main() {
                 }
                 if a1 == "telegram" {
                         sendTelegram()
+                        os.Exit(0)
+                }
+                if a1 == "totp" {
+                        genTotp()
+                        os.Exit(0)
+                }
+                if a1 == "testtotp" {
+                        testTotp(os.Args[2])
+                        os.Exit(0)
+                }
+                if a1 == "allowtrade" {
+                        allowTrade(os.Args[2])
                         os.Exit(0)
                 }
                 if a1 == "account" {
@@ -297,6 +318,23 @@ func insertPositions(exchange string, pair string, trtype string, timest time.Ti
         INSERT INTO yourposition (exchange, pair, trtype, timestamp, rate, amount)
         VALUES ($1, $2, $3, $4, $5, $6)`
         _, err = db.Exec(sqlStatement, exchange, pair, trtype, timest, rate, amount)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+}
+
+func deletePositions(exchange string, pair string) {
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        DELETE FROM yourposition
+        WHERE exchange = $1 and pair = $2;`
+        _, err = db.Exec(sqlStatement, exchange, pair)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -744,8 +782,15 @@ func sendTelegram(){
                 		insertParms("ChatID", update.Message.Chat.ID, 0, "", time.Now(), time.Now(), time.Now())
 				argParts := strings.Split(update.Message.Text, " ")
                                 if  argParts[0] == "Adviceperiod" {
+					var passcode string
 					period, err := strconv.Atoi(argParts[1])
-					if err == nil {
+					if len(argParts) > 2 {
+                                        passcode = argParts[2]
+					} else {
+						passcode = ""
+					}
+                                        valid := totp.Validate(passcode, key_secret)
+					if err == nil && valid {
 						fmt.Println(period)
 						deleteParms("AdvicePeriod")
  						insertParms("AdvicePeriod", int64(period), 0, "", time.Now(), time.Now(), time.Now())
@@ -755,11 +800,33 @@ func sendTelegram(){
 					}
                                 }
                                 if  argParts[0] == "Limitdepth" {
+                                        var passcode string
                                         period, err := strconv.Atoi(argParts[1])
-                                        if err == nil {
+                                        if len(argParts) > 2 {
+                                        passcode = argParts[2]
+                                        } else {
+                                                passcode = ""
+                                        }
+                                        valid := totp.Validate(passcode, key_secret)
+                                        if err == nil && valid {
                                                 fmt.Println(period)
                                                 deleteParms("limit_depth")
                                                 insertParms("limit_depth", int64(period), 0, "", time.Now(), time.Now(), time.Now())
+                                                mess = "command successful"
+                                        } else {
+                                                mess = "command failed"
+                                        }
+                                }
+                                if  argParts[0] == "Stoptrade" {
+                                        var passcode string
+                                        if len(argParts) > 1 {
+                                        passcode = argParts[1]
+                                        } else {
+                                                passcode = ""
+                                        }
+        				valid := totp.Validate(passcode, key_secret)
+                                        if valid {
+                                                deleteParms("DoTrade")
                                                 mess = "command successful"
                                         } else {
                                                 mess = "command failed"
@@ -798,6 +865,10 @@ func read_config() {
 	pgdb = viper.GetString("pgdb")
 
 	tbtoken = viper.GetString("tbtoken")
+
+        key_issuer = viper.GetString("key_issuer")
+        key_account = viper.GetString("key_account")
+        key_secret = viper.GetString("key_secret")
 
 	amountcomma = viper.GetStringMapString("amountcomma")
         pricecomma = viper.GetStringMapString("pricecomma")
@@ -1173,7 +1244,7 @@ func processOrders() {
                         	submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" bought")
 			}
                         if o.status == "FILLED" && o.order_side == "SELL" {
-            //                    insertPositions(o.exchange,o.base_currency+"-"+o.quote_currency,o.order_side,time.Unix(int64(o.update_time), 0),o.price,o.amount)
+				deletePositions(o.exchange, o.base_currency+"-"+o.quote_currency)
                                 submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" sold")
                         }
 		}
@@ -1272,13 +1343,13 @@ func sellOrders() {
 
                 if len(string(out)) < 10 {
                         fmt.Println("No open order")
-                        newprice,err := getBuyPrice(v)
+                        newprice,newamount,err := getSellPrice(v)
                         if err != nil {
                                 fmt.Printf("Price error: %v\n", err)
                                 continue
                         }
                         fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
-                        out := submitOrder(v,"SELL","LIMIT",float64(invest_amount)/newprice,newprice,"automatic-new")
+                        out := submitOrder(v,"SELL","LIMIT",newamount,newprice,"automatic-new")
                         fmt.Println(string(out))
                         continue
                 }
@@ -1322,3 +1393,48 @@ func sellOrders() {
         }
 }
 
+func genTotp() {
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      key_issuer,
+		AccountName: key_account,
+	})
+	if err != nil {
+		panic(err)
+	}
+	// Convert TOTP key into a PNG
+	var buf bytes.Buffer
+	img, err := key.Image(200, 200)
+	if err != nil {
+		panic(err)
+	}
+	png.Encode(&buf, img)
+}
+
+func display(key *otp.Key, data []byte) {
+	fmt.Printf("Issuer:       %s\n", key.Issuer())
+	fmt.Printf("Account Name: %s\n", key.AccountName())
+	fmt.Printf("Secret:       %s\n", key.Secret())
+	fmt.Println("Writing PNG to qr-code.png....")
+	ioutil.WriteFile("/tmp/qr-code.png", data, 0644)
+}
+
+func testTotp(passcode string) {
+	// Now Validate that the user's successfully added the passcode.
+	fmt.Println("Validating TOTP...")
+	valid := totp.Validate(passcode, key_secret)
+	if valid {
+		println("Valid passcode!")
+	} else {
+		println("Invalid passcode!")
+	}
+}
+
+func allowTrade(passcode string) {
+        valid := totp.Validate(passcode, key_secret)
+        if valid {
+        	insertParms("DoTrade", 13579, 0, "", time.Now(), time.Now(), time.Now())
+                println("Trade allowed")
+        } else {
+                println("Wrong passcode!")
+        }
+}
