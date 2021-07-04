@@ -666,7 +666,9 @@ func getBuyPrice(pair string) (price float64, err error) {
 		where pair = $1
 		and y.pair not in 
 		(select pair from yourposition p
-		where pair = $1);`
+		where pair = $1)
+		and trend4 > -1
+		;`
 
         err = db.QueryRow(sqlStatement, pair).Scan(&price)
         if err != nil {
@@ -688,7 +690,9 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
                 select l.limitsell, p.amount from yourlimits l, yourposition p 
                 where l.pair = $1
                 and p.pair = $1
-		and l.limitsell > p.rate;`
+		and l.limitsell > p.rate
+		and l.trend4 < 1
+		;`
 
         err = db.QueryRow(sqlStatement, pair).Scan(&price,&amount)
         if err != nil {
