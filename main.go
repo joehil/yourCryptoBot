@@ -32,6 +32,7 @@ import (
 	"strconv"
 	"syscall"
 	"bytes"
+	"math"
 	"image/png"
 	"io/ioutil"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
@@ -584,6 +585,9 @@ func submitOrder(pair string,side string,otype string,amount float64,price float
 	var strprice string 
 	var aformat string = "%."+amountcomma[strings.ToLower(pair)]+"f"
         var pformat string = "%."+pricecomma[strings.ToLower(pair)]+"f"
+	apot, _ := strconv.ParseInt(amountcomma[strings.ToLower(pair)], 10, 32)
+	fac := math.Pow(float64(10),float64(apot))
+	amount = float64(math.Floor(amount*fac)/fac)
 	
 	stramount = fmt.Sprintf(aformat,amount)
 	strprice = fmt.Sprintf(pformat,price)
