@@ -476,8 +476,8 @@ func calculateLimit() {
         with subquery as (
         select
         pair,
-        (min + (max - min)/$1) as limitbuy,
-        (max - (max - min)/$1) as limitsell
+        (min + (max - min)*$1/100) as limitbuy,
+        (max - (max - min)*$1/100) as limitsell
         from yourlimits
 	)
         UPDATE yourlimits l
