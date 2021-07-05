@@ -599,7 +599,9 @@ func submitOrder(pair string,side string,otype string,amount float64,price float
 	"--amount",stramount,"--price",strprice,"--client_id",clientid).Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
-        }
+        } else {
+		storeOrder("binance","ORDER",pair,"SPOT",side,otype,float64(time.Now().Unix()),"NEW",price,amount)
+	}
         return out
 }
 
@@ -687,7 +689,7 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
         defer db.Close()
 
         sqlStatement := `
-                select l.limitsell, p.amount from yourlimits l, yourposition p 
+                select l.limitsell, p.amount*0.995 as amount from yourlimits l, yourposition p 
                 where l.pair = $1
                 and p.pair = $1
 		and l.limitsell > p.rate
