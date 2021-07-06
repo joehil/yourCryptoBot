@@ -600,7 +600,7 @@ func submitOrder(pair string,side string,otype string,amount float64,price float
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
         } else {
-		storeOrder("binance","ORDER",pair,"SPOT",side,otype,float64(time.Now().Unix()),"NEW",price,amount)
+//		storeOrder("binance","ORDER",pair,"SPOT",side,otype,float64(time.Now().Unix()),"NEW",price,amount)
 	}
         return out
 }
@@ -692,7 +692,7 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
                 select l.limitsell, p.amount*0.995 as amount from yourlimits l, yourposition p 
                 where l.pair = $1
                 and p.pair = $1
-		and l.limitsell > p.rate
+		and l.limitsell > p.rate * 1.01
 		and l.trend4 < 1
 		;`
 
