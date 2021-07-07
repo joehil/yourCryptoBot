@@ -175,18 +175,8 @@ func main() {
 			deleteOrders()
                         os.Exit(0)
                 }
-                if a1 == "trend7" {
-                        trend7("BNB-EUR")
-                        os.Exit(0)
-                }
-                if a1 == "trend24" {
-                        trend24("BNB-EUR")
-                        os.Exit(0)
-                }
                 if a1 == "trend" {
-                        trend24("ADA-EUR")
-			trend7("ADA-EUR")
-			trend4("ADA-EUR")
+                        calculateTrends()
                         os.Exit(0)
                 }
 		fmt.Println("parameter invalid")
@@ -581,6 +571,7 @@ func getOrders(pair string) []byte {
 }
 
 func submitOrder(pair string,side string,otype string,amount float64,price float64,clientid string) []byte {
+        var resp map[string]interface{}
 	var stramount string
 	var strprice string 
 	var aformat string = "%."+amountcomma[strings.ToLower(pair)]+"f"
@@ -600,7 +591,15 @@ func submitOrder(pair string,side string,otype string,amount float64,price float
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
         } else {
-//		storeOrder("binance","ORDER",pair,"SPOT",side,otype,float64(time.Now().Unix()),"NEW",price,amount)
+                err := json.Unmarshal(out, &resp)
+                if err != nil { // Handle JSON errors
+                	fmt.Printf("JSON error: %v\n", err)
+                	fmt.Printf("JSON input: %v\n",string(out))
+                } else {
+//                	status = strings.ToLower(resp["exchange"].(string))
+                	id := resp["order_id"].(string)
+  	                storeOrder("binance",id,pair,"SPOT",side,otype,float64(time.Now().Unix()),"NEW",price,amount)
+		}
 	}
         return out
 }
@@ -669,7 +668,8 @@ func getBuyPrice(pair string) (price float64, err error) {
 		and y.pair not in 
 		(select pair from yourposition p
 		where pair = $1)
-		and trend4 > -1
+		and trend2 > -1
+		and trend1 > -1
 		;`
 
         err = db.QueryRow(sqlStatement, pair).Scan(&price)
@@ -693,7 +693,8 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
                 where l.pair = $1
                 and p.pair = $1
 		and l.limitsell > p.rate * 1.01
-		and l.trend4 < 1
+		and l.trend2 < 1
+		and l.trend1 < 1
 		;`
 
         err = db.QueryRow(sqlStatement, pair).Scan(&price,&amount)
@@ -969,13 +970,13 @@ func CheckError(err error) {
     }
 }
 
-func trend7(pair string) {
+func trend1(pair string) {
         var wr bool = false
 	var tm1 int64
 	var coeff float64
 	var cls float64
 
-        fmt.Printf("Calculate trend7 %v\n",pair)
+        fmt.Printf("Calculate trend1 %v\n",pair)
 
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
@@ -991,7 +992,7 @@ func trend7(pair string) {
         sqlStatement := `
         select "timestamp", "close"  from yourcandle
         where pair = $1
-        and "timestamp" > current_timestamp - interval '7 days'
+        and "timestamp" > current_timestamp - interval '1 hour'
 	order by "timestamp";`
 
         rows, err := db.Query(sqlStatement, pair)
@@ -1032,7 +1033,7 @@ func trend7(pair string) {
                 coeff = r.Coeff(1) * 360000 / cls
                 sqlStatement = `
                 UPDATE yourlimits
-                SET trend7 = $1
+                SET trend1 = $1
                 WHERE pair = $2;`
                 _, err = db.Exec(sqlStatement,coeff,pair)
                 if err != nil {
@@ -1041,7 +1042,7 @@ func trend7(pair string) {
         }
 }
 
-func trend24(pair string) {
+func trend3(pair string) {
         var wr bool = false
         var tm1 int64
 	var coeff float64
@@ -1063,7 +1064,8 @@ func trend24(pair string) {
         sqlStatement := `
         select "timestamp", "close"  from yourcandle
         where pair = $1
-        and "timestamp" > current_timestamp - interval '24 hours'
+        and "timestamp" > current_timestamp - interval '4 hours'
+        and "timestamp" <= current_timestamp - interval '1 hours'
         order by "timestamp";`
 
         rows, err := db.Query(sqlStatement, pair)
@@ -1104,7 +1106,7 @@ func trend24(pair string) {
                 coeff = r.Coeff(1) * 360000 / cls
                 sqlStatement = `
                 UPDATE yourlimits
-                SET trend24 = $1
+                SET trend3 = $1
                 WHERE pair = $2;`
                 _, err = db.Exec(sqlStatement,coeff,pair)
                 if err != nil {
@@ -1113,13 +1115,13 @@ func trend24(pair string) {
         }
 }
 
-func trend4(pair string) {
+func trend2(pair string) {
 	var wr bool = false
         var tm1 int64
 	var coeff float64
 	var cls float64
 
-        fmt.Printf("Calculate trend4 %v\n",pair)
+        fmt.Printf("Calculate trend2 %v\n",pair)
 
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
@@ -1135,7 +1137,8 @@ func trend4(pair string) {
         sqlStatement := `
         select "timestamp", "close"  from yourcandle
         where pair = $1
-        and "timestamp" > current_timestamp - interval '4 hours'
+        and "timestamp" > current_timestamp - interval '2 hours'
+	and "timestamp" <= current_timestamp - interval '1 hours'
         order by "timestamp";`
 
         rows, err := db.Query(sqlStatement, pair)
@@ -1176,7 +1179,7 @@ func trend4(pair string) {
 		coeff = r.Coeff(1) * 360000 / cls
 	        sqlStatement = `
         	UPDATE yourlimits 
-        	SET trend4 = $1
+        	SET trend2 = $1
         	WHERE pair = $2;`
         	_, err = db.Exec(sqlStatement,coeff,pair)
         	if err != nil {
@@ -1187,9 +1190,9 @@ func trend4(pair string) {
 
 func calculateTrends() {
         for _, v := range pairs {
-		trend7(v)
-		trend24(v)
-		trend4(v)
+		trend1(v)
+		trend2(v)
+		trend3(v)
 	}
 }
 
