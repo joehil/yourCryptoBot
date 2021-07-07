@@ -179,6 +179,10 @@ func main() {
                         calculateTrends()
                         os.Exit(0)
                 }
+                if a1 == "chart" {
+                        writeChart("BNB-EUR")
+                        os.Exit(0)
+                }
 		fmt.Println("parameter invalid")
 		os.Exit(-1)
 	}
@@ -668,8 +672,7 @@ func getBuyPrice(pair string) (price float64, err error) {
 		and y.pair not in 
 		(select pair from yourposition p
 		where pair = $1)
-		and trend2 > -1
-		and trend1 > -1
+		and trend3 > -1
 		;`
 
         err = db.QueryRow(sqlStatement, pair).Scan(&price)
@@ -693,8 +696,7 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
                 where l.pair = $1
                 and p.pair = $1
 		and l.limitsell > p.rate * 1.01
-		and l.trend2 < 1
-		and l.trend1 < 1
+		and l.trend3 < 1
 		;`
 
         err = db.QueryRow(sqlStatement, pair).Scan(&price,&amount)
@@ -1451,3 +1453,90 @@ func allowTrade(passcode string) {
                 println("Wrong passcode!")
         }
 }
+
+func writeChart(pair string) {
+        var tmstp time.Time
+        var value float64
+
+        fmt.Printf("Write chart %s\n",pair)
+
+	f, err := os.Create("/var/www/html/"+pair+".html")
+
+	if err != nil {
+        	panic(err)
+	}
+
+	defer f.Close()
+
+	header := `
+<!doctype html>
+<html>
+<head>
+  <title>Timeline</title>
+  <script type="text/javascript" src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"></script>
+  <link href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+  <style type="text/css">
+    #visualization {
+      width: 1800px;
+      height: 1200px;
+      border: 1px solid lightgray;
+    }
+  </style>
+</head>
+<body>
+<div id="visualization"></div>
+
+<script type="text/javascript">
+
+  var container = document.getElementById('visualization');
+
+  var items = new vis.DataSet(
+[
+	`
+
+	_, err = f.WriteString(header)
+
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        select "timestamp", "close"  from yourcandle
+        where pair = $1
+        and "timestamp" > current_timestamp - interval '30 days'
+        order by "timestamp";`
+
+        rows, err := db.Query(sqlStatement,pair)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+        defer rows.Close()
+
+        for rows.Next(){
+                if err := rows.Scan(&tmstp, &value); err != nil {
+                        fmt.Println(err)
+                }
+		_, err = f.WriteString(fmt.Sprintf("{x: '%s', y: %f},\n",tmstp.Format("2006-01-02T15:04:05"),value)) 
+        }
+
+        footer := `
+]
+  );
+
+  var options = {
+    start: '2014-06-10',
+    end: '2014-06-18'
+  };
+  var graph2d = new vis.Graph2d(container, items, options);
+</script>
+
+</body>
+</html>
+        `
+        _, err = f.WriteString(footer)
+}
+
+
