@@ -119,6 +119,7 @@ func main() {
         	a1 := os.Args[1]
         	if a1 == "cron" {
 			getCandles()
+			deleteCandles()
 			deleteStats()
 			insertStats()
 			updateStats()
@@ -129,6 +130,7 @@ func main() {
 			readOrders()
 			processOrders()
 			deleteOrders()
+                        writeCharts()
 			os.Exit(0)
         	}
                 if a1 == "updatestats" {
@@ -180,7 +182,7 @@ func main() {
                         os.Exit(0)
                 }
                 if a1 == "chart" {
-                        writeChart("BNB-EUR")
+                        writeCharts()
                         os.Exit(0)
                 }
 		fmt.Println("parameter invalid")
@@ -531,6 +533,24 @@ func deleteOrders() {
         sqlStatement := `
         delete from yourorder
 	where status = 'CANCELLED';`
+        _, err = db.Exec(sqlStatement)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+}
+
+func deleteCandles() {
+        fmt.Println("Delete candles")
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        delete from yourcandle
+        where "timestamp" > current_timestamp - interval '30 days'`
         _, err = db.Exec(sqlStatement)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
@@ -1527,8 +1547,6 @@ func writeChart(pair string) {
   );
 
   var options = {
-    start: '2014-06-10',
-    end: '2014-06-18'
   };
   var graph2d = new vis.Graph2d(container, items, options);
 </script>
@@ -1539,4 +1557,9 @@ func writeChart(pair string) {
         _, err = f.WriteString(footer)
 }
 
+func writeCharts() {
+        for _, v := range pairs {
+                writeChart(v)
+        }
+}
 
