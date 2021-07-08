@@ -550,7 +550,7 @@ func deleteCandles() {
 
         sqlStatement := `
         delete from yourcandle
-        where "timestamp" > current_timestamp - interval '30 days'`
+        where "timestamp" < current_timestamp - interval '30 days'`
         _, err = db.Exec(sqlStatement)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
