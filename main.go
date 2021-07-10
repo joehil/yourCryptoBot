@@ -1,17 +1,13 @@
 /*MIT License
-
 Copyright (c) 2021 Joerg Hillebrand
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -111,15 +107,18 @@ func main() {
         	fmt.Println( err )
     	}
 
-	viper.SetConfigName("yourCryptoBot") // name of config file (without extension)
+//	viper.SetConfigName("yourCryptoBot") // name of config file (without extension)
 	viper.AddConfigPath(dirname+"/.yourCryptoBot/")   // path to look for the config file in
 
-// Read config
-	read_config()
-
 // Get commandline args
-	if len(os.Args) > 1 {
-        	a1 := os.Args[1]
+	if len(os.Args) > 2 {
+			exc := os.Args[1]
+			viper.SetConfigName(exc) // name of config file (name of exchange)
+			
+// Read config
+			read_config()
+			
+        	a1 := os.Args[2]
         	if a1 == "cron" {
 			getCandles()
 			deleteCandles()
@@ -163,11 +162,11 @@ func main() {
                         os.Exit(0)
                 }
                 if a1 == "testtotp" {
-                        testTotp(os.Args[2])
+                        testTotp(os.Args[3])
                         os.Exit(0)
                 }
                 if a1 == "allowtrade" {
-                        allowTrade(os.Args[2])
+                        allowTrade(os.Args[3])
                         os.Exit(0)
                 }
                 if a1 == "account" {
@@ -283,7 +282,7 @@ func readAccount() {
                         tot := strings.Trim(words[1], "\",")
 			if total, err := strconv.ParseFloat(tot, 64); err == nil {
     				fmt.Printf("Curr: %s, Total: %f\n",cur,total)
-				storeAccount("binance", cur, total)
+				storeAccount(exchange_name, cur, total)
 			}
                 }
 	}
@@ -563,7 +562,7 @@ func deleteCandles() {
 
 func getPair(p string, s string, e string) []byte {
         out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "gethistoriccandlesextended",
-        "-e","binance","-a","SPOT","-p",p,"-i","900",
+        "-e",exchange_name,"-a","SPOT","-p",p,"-i","900",
         "--start",s,"--end",e).Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
@@ -573,7 +572,7 @@ func getPair(p string, s string, e string) []byte {
 
 func getAccount() []byte {
         out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getaccountinfo",
-        "--exchange","binance","--asset","SPOT").Output()
+        "--exchange",exchange_name,"--asset","SPOT").Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
         }
@@ -582,7 +581,7 @@ func getAccount() []byte {
 
 func getOrder(pair string,id string) []byte {
         out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getorder",
-        "--exchange","binance","--asset","SPOT","--pair",pair,"--order_id",id).Output()
+        "--exchange",exchange_name,"--asset","SPOT","--pair",pair,"--order_id",id).Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
         }
@@ -591,7 +590,7 @@ func getOrder(pair string,id string) []byte {
 
 func getOrders(pair string) []byte {
         out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getorders",
-        "--exchange","binance","--asset","SPOT","--pair",pair).Output()
+        "--exchange",exchange_name,"--asset","SPOT","--pair",pair).Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
         }
@@ -614,7 +613,7 @@ func submitOrder(pair string,side string,otype string,amount float64,price float
 	fmt.Printf("A: %s, P: %s\n",stramount,strprice)
 
         out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "submitorder",
-        "--exchange","binance","--asset","SPOT","--pair",pair,"--side",side,"--type",otype,
+        "--exchange",exchange_name,"--asset","SPOT","--pair",pair,"--side",side,"--type",otype,
 	"--amount",stramount,"--price",strprice,"--client_id",clientid).Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
@@ -626,7 +625,7 @@ func submitOrder(pair string,side string,otype string,amount float64,price float
                 } else {
 //                	status = strings.ToLower(resp["exchange"].(string))
                 	id := resp["order_id"].(string)
-  	                storeOrder("binance",id,pair,"SPOT",side,otype,float64(time.Now().Unix()),"NEW",price,amount)
+  	                storeOrder(exchange_name,id,pair,"SPOT",side,otype,float64(time.Now().Unix()),"NEW",price,amount)
 		}
 	}
         return out
@@ -634,7 +633,7 @@ func submitOrder(pair string,side string,otype string,amount float64,price float
 
 func cancelOrder(pair string,oid string) []byte {
         out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "cancelorder",
-        "--exchange","binance","--asset","SPOT","--pair",pair,"--order_id",oid).Output()
+        "--exchange",exchange_name,"--asset","SPOT","--pair",pair,"--order_id",oid).Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
         }
@@ -1523,7 +1522,7 @@ func writeChart(pair string) {
 
         fmt.Printf("Write chart %s\n",pair)
 
-	f, err := os.Create("/var/www/html/"+pair+".html")
+	f, err := os.Create("/var/www/html/"+exchange_name+"-"+pair+".html")
 
 	if err != nil {
         	panic(err)
@@ -1548,11 +1547,8 @@ func writeChart(pair string) {
 </head>
 <body>
 <div id="visualization"></div>
-
 <script type="text/javascript">
-
   var container = document.getElementById('visualization');
-
   var items = new vis.DataSet(
 [
 	`
@@ -1588,12 +1584,10 @@ func writeChart(pair string) {
         footer := `
 ]
   );
-
   var options = {
   };
   var graph2d = new vis.Graph2d(container, items, options);
 </script>
-
 </body>
 </html>
         `
@@ -1605,4 +1599,3 @@ func writeCharts() {
                 writeChart(v)
         }
 }
-
