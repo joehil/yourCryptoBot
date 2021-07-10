@@ -160,7 +160,7 @@ func main() {
                 }
                 if a1 == "doorder" {
                         buyOrders()
-//			sellOrders()
+			sellOrders()
                         os.Exit(0)
                 }
                 if a1 == "telegram" {
@@ -711,13 +711,13 @@ func getBuyPrice(pair string) (price float64, err error) {
 
         sqlStatement := `
 		select limitbuy from yourlimits y 
-		where pair = $1
-		AND exchange = $2
+		where y.pair = $1
+		AND LOWER(y.exchange) = $2
 		and y.pair not in 
 		(select pair from yourposition p
-		where pair = $1)
-		and trend3 > -1
-		;`
+		where p.pair = $1
+		AND LOWER(p.exchange) = $2)
+		and y.trend3 > -1;`
 
         err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&price)
         if err != nil {
@@ -753,13 +753,16 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
         sqlStatement := `
                 select l.limitsell, l.current, l.trend1, l.trend2, l.trend3, p.rate, p.amount*0.995 as amount from yourlimits l, yourposition p 
                 where l.pair = $1
-		AND l.exchange = $2
-                and p.pair = $1;`
+		AND LOWER(l.exchange) = $2
+                and p.pair = $1
+		AND LOWER(p.exchange) = $2;`
 
         err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&trend1,&trend2,&trend3,&rate,&amnt)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
+
+	fmt.Printf("C: %f, R: %f, T1: %f, T3: %f\n",current,rate,trend1,trend3)
 
 	if ((trend3 >= 1) && (trend1 < 0.1) && (current * 0.98 > rate) && (current > rate * winperc)) {
 		amount = amnt
