@@ -117,7 +117,11 @@ func main() {
 			
 // Read config
 			read_config()
-			
+
+			if (exc != exchange_name) {
+				panic("Wrong exchange")
+			}
+
         	a1 := os.Args[2]
         	if a1 == "cron" {
 			getCandles()
@@ -136,6 +140,12 @@ func main() {
 			sellOrders()
 			os.Exit(0)
         	}
+                if a1 == "candles" {
+			time.Sleep(15 * time.Second)
+                        getCandles()
+                        deleteCandles()
+                        os.Exit(0)
+                }
                 if a1 == "updatestats" {
                         deleteStats()
                         insertStats()
@@ -250,7 +260,11 @@ func getCandles() {
 			if cn != nil {
 				open = cn["open"].(float64)
         	                close = cn["close"].(float64)
-                	        volume = cn["volume"].(float64)
+				if cn["volume"] != nil {
+                	        	volume = cn["volume"].(float64)
+				} else {
+					volume = 0
+				}
                         	low = cn["low"].(float64)
 	           	        high = cn["high"].(float64)
 				stime = cn["time"].(string)
@@ -1565,10 +1579,11 @@ func writeChart(pair string) {
         sqlStatement := `
         select "timestamp", "close"  from yourcandle
         where pair = $1
+	and LOWER(exchange_name) = $2
         and "timestamp" > current_timestamp - interval '30 days'
         order by "timestamp";`
 
-        rows, err := db.Query(sqlStatement,pair)
+        rows, err := db.Query(sqlStatement,pair,exchange_name)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
