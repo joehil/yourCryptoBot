@@ -140,6 +140,18 @@ func main() {
 			sellOrders()
 			os.Exit(0)
         	}
+                if a1 == "butsell" {
+                        time.Sleep(15 * time.Second)
+                        getCandles()
+                        deleteCandles()
+                        deleteStats()
+                        insertStats()
+                        updateStats()
+                        calculateLimit()
+                        calculateTrends()
+                        writeCharts()
+                        os.Exit(0)
+                }
                 if a1 == "candles" {
 			time.Sleep(15 * time.Second)
                         getCandles()
@@ -520,7 +532,7 @@ func deleteStats() {
 
         sqlStatement := `
         delete from yourlimits
-	WHERE exchange = $1;`
+	WHERE LOWER(exchange) = $1;`
         _, err = db.Exec(sqlStatement,exchange_name)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
