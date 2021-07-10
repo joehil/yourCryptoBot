@@ -312,7 +312,8 @@ func insertCandles(exchange string, pair string, interval string, timest time.Ti
         defer db.Close()
 
 	sqlStatement := `
-	INSERT INTO yourcandle (exchange_name, pair, interval, timestamp, open, high, low, close, volume, asset)
+	INSERT INTO yourcandle (
+	exchange, pair, interval, timestamp, open, high, low, close, volume, asset)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	_, err = db.Exec(sqlStatement, exchange, pair, interval, timest, open, high, low, close, volume, asset)
 	if err != nil {
@@ -436,14 +437,15 @@ func insertStats() {
         defer db.Close()
 
         sqlStatement := `
-	insert into yourlimits (pair, min,avg,max,count,potwin)
-	(select pair, min(close) as min, avg(close) as avg, max(close) as max, count(close) as count,
+	insert into yourlimits (exchange,pair, min,avg,max,count,potwin)
+	(select exchange,pair, min(close) as min, avg(close) as avg, max(close) as max, count(close) as count,
 	(max(close) - min(close)) * $1 / min(close) as potwin
 	from yourcandle 
 	where "timestamp" > current_timestamp - interval ` + intv +  `
-	group by pair
+	AND LOWER(exchange) = $2
+	group by exchange,pair
 	order by pair);`
-        _, err = db.Exec(sqlStatement,limit_depth)
+        _, err = db.Exec(sqlStatement,limit_depth,exchange_name)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -462,13 +464,15 @@ func updateStats() {
 	WITH subquery AS (
 	select close,pair from yourcandle y 
 	where timestamp =
-	(select max(timestamp) from yourcandle)
+	(select max(timestamp) from yourcandle where LOWER(exchange) = $1)
+	AND LOWER(exchange) = $1
 	)
 	UPDATE yourlimits l
 	SET current = subquery.close
 	FROM subquery
-	WHERE l.pair = subquery.pair;`
-        _, err = db.Exec(sqlStatement)
+	WHERE l.pair = subquery.pair
+	AND LOWER(l.exchange) = $1;`
+        _, err = db.Exec(sqlStatement,exchange_name)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -491,14 +495,15 @@ func calculateLimit() {
         pair,
         (min + (max - min)*$1/100) as limitbuy,
         (max - (max - min)*$1/100) as limitsell
-        from yourlimits
+        from yourlimits where LOWER(exchange) = $2
 	)
         UPDATE yourlimits l
         SET "limitbuy" = subquery.limitbuy,
 	    "limitsell" = subquery.limitsell
         FROM subquery
-        WHERE l.pair = subquery.pair;`
-        _, err = db.Exec(sqlStatement,depth)
+        WHERE l.pair = subquery.pair
+	AND LOWER(l.exchange) = $2;`
+        _, err = db.Exec(sqlStatement,depth,exchange_name)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -514,8 +519,9 @@ func deleteStats() {
         defer db.Close()
 
         sqlStatement := `
-        delete from yourlimits;`
-        _, err = db.Exec(sqlStatement)
+        delete from yourlimits
+	WHERE exchange = $1;`
+        _, err = db.Exec(sqlStatement,exchange_name)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -706,13 +712,14 @@ func getBuyPrice(pair string) (price float64, err error) {
         sqlStatement := `
 		select limitbuy from yourlimits y 
 		where pair = $1
+		AND exchange = $2
 		and y.pair not in 
 		(select pair from yourposition p
 		where pair = $1)
 		and trend3 > -1
 		;`
 
-        err = db.QueryRow(sqlStatement, pair).Scan(&price)
+        err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&price)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -746,9 +753,10 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
         sqlStatement := `
                 select l.limitsell, l.current, l.trend1, l.trend2, l.trend3, p.rate, p.amount*0.995 as amount from yourlimits l, yourposition p 
                 where l.pair = $1
+		AND l.exchange = $2
                 and p.pair = $1;`
 
-        err = db.QueryRow(sqlStatement, pair).Scan(&limit,&current,&trend1,&trend2,&trend3,&rate,&amnt)
+        err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&trend1,&trend2,&trend3,&rate,&amnt)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -1110,8 +1118,9 @@ func trend1(pair string) {
                 sqlStatement = `
                 UPDATE yourlimits
                 SET trend1 = $1
-                WHERE pair = $2;`
-                _, err = db.Exec(sqlStatement,coeff,pair)
+                WHERE pair = $2
+		AND LOWER(exchange) = $3;`
+                _, err = db.Exec(sqlStatement,coeff,pair,exchange_name)
                 if err != nil {
                         fmt.Printf("SQL error: %v\n",err)
                 }
@@ -1183,8 +1192,9 @@ func trend3(pair string) {
                 sqlStatement = `
                 UPDATE yourlimits
                 SET trend3 = $1
-                WHERE pair = $2;`
-                _, err = db.Exec(sqlStatement,coeff,pair)
+                WHERE pair = $2
+		AND LOWER(exchange) = $3;`
+                _, err = db.Exec(sqlStatement,coeff,pair,exchange_name)
                 if err != nil {
                         fmt.Printf("SQL error: %v\n",err)
                 }
@@ -1256,8 +1266,9 @@ func trend2(pair string) {
 	        sqlStatement = `
         	UPDATE yourlimits 
         	SET trend2 = $1
-        	WHERE pair = $2;`
-        	_, err = db.Exec(sqlStatement,coeff,pair)
+        	WHERE pair = $2
+		AND LOWER(exchange) = $3;`
+        	_, err = db.Exec(sqlStatement,coeff,pair,exchange_name)
         	if err != nil {
                 	fmt.Printf("SQL error: %v\n",err)
         	}
@@ -1579,7 +1590,7 @@ func writeChart(pair string) {
         sqlStatement := `
         select "timestamp", "close"  from yourcandle
         where pair = $1
-	and LOWER(exchange_name) = $2
+	and LOWER(exchange) = $2
         and "timestamp" > current_timestamp - interval '30 days'
         order by "timestamp";`
 
