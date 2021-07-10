@@ -49,6 +49,8 @@ var pipeFile = "/tmp/yourpipe"
 
 var do_trace bool = true
 
+var exchange_name string
+
 var pairs []string
 var tradepairs []string
 
@@ -64,6 +66,7 @@ var pgdb string
 var tbtoken string
 var limit_depth int
 var invest_amount int
+var minwin int
 
 var amountcomma map[string]string
 var pricecomma map[string]string
@@ -131,6 +134,7 @@ func main() {
 			processOrders()
 			deleteOrders()
                         writeCharts()
+			sellOrders()
 			os.Exit(0)
         	}
                 if a1 == "updatestats" {
@@ -147,7 +151,7 @@ func main() {
                 }
                 if a1 == "doorder" {
                         buyOrders()
-			sellOrders()
+//			sellOrders()
                         os.Exit(0)
                 }
                 if a1 == "telegram" {
@@ -703,6 +707,21 @@ func getBuyPrice(pair string) (price float64, err error) {
 }
 
 func getSellPrice(pair string) (price float64, amount float64, err error) {
+	var rate float64
+	var current float64
+	var limit float64
+	var amnt float64
+	var trend1 float64
+        var trend2 float64
+        var trend3 float64
+	var winperc float64 = (100 + float64(minwin) / 100)
+
+	var trendrate float64 = 0
+	var limitrate float64 = 0
+
+	price = 0
+	amount = 0
+
         fmt.Printf("Get sell price %v\n",pair)
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
@@ -712,17 +731,34 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
         defer db.Close()
 
         sqlStatement := `
-                select l.limitsell, p.amount*0.995 as amount from yourlimits l, yourposition p 
+                select l.limitsell, l.current, l.trend1, l.trend2, l.trend3, p.rate, p.amount*0.995 as amount from yourlimits l, yourposition p 
                 where l.pair = $1
-                and p.pair = $1
-		and l.limitsell > p.rate * 1.01
-		and l.trend3 < 1
-		;`
+                and p.pair = $1;`
 
-        err = db.QueryRow(sqlStatement, pair).Scan(&price,&amount)
+        err = db.QueryRow(sqlStatement, pair).Scan(&limit,&current,&trend1,&trend2,&trend3,&rate,&amnt)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
+
+	if ((trend3 >= 1) && (trend1 < 0.1) && (current * 0.98 > rate) && (current > rate * winperc)) {
+		amount = amnt
+		trendrate = current * 0.98
+		fmt.Printf("Trendrate: %f\n",trendrate)
+	}
+
+        if ((current > limit) && (limit > rate * winperc)) {
+                amount = amnt
+                limitrate = limit
+                fmt.Printf("Limitrate: %f\n",limitrate)
+        }
+
+	price = limitrate
+	if trendrate > limitrate {
+		price = trendrate
+	}
+
+	fmt.Printf("A: %f, P: %f\n",amount,price)
+
         return
 }
 
@@ -888,6 +924,8 @@ func read_config() {
 
         do_trace = viper.GetBool("do_trace")
 
+        exchange_name = viper.GetString("exchange_name")
+
 	gctcmd = viper.GetString("gctcmd")
 
 	gctuser = viper.GetString("gctuser")
@@ -908,6 +946,7 @@ func read_config() {
 
 	limit_depth = viper.GetInt("limit_depth")
         invest_amount = viper.GetInt("invest_amount")
+        minwin = viper.GetInt("minwin")
 
         parm,err := getParms("limit_depth")
         if err == nil {
@@ -924,8 +963,10 @@ func read_config() {
 
 	if do_trace {
 		fmt.Println("do_trace: ",do_trace)
+                fmt.Printf("exchange_name: %s\n",exchange_name)
                 fmt.Printf("limit_depth: %d\n",limit_depth)
                 fmt.Printf("invest_amount: %d\n",invest_amount)
+                fmt.Printf("minwin: %d\n",minwin)
 		fmt.Println(amountcomma)
                 fmt.Println(pricecomma)
 		for i, v := range pairs {
@@ -1383,9 +1424,11 @@ func sellOrders() {
                                 fmt.Printf("Price error: %v\n", err)
                                 continue
                         }
-                        fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
-                        out := submitOrder(v,"SELL","LIMIT",newamount,newprice,"automatic-new")
-                        fmt.Println(string(out))
+			if newprice > 0 {
+                        	fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
+                        	out := submitOrder(v,"SELL","LIMIT",newamount,newprice,"automatic-new")
+                        	fmt.Println(string(out))
+			}
                         continue
                 }
 
