@@ -814,6 +814,52 @@ func getBuyPrice(pair string) (price float64, err error) {
         return
 }
 
+func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
+	var current float64
+	var limit float64
+	var trend1 float64
+        var trend2 float64
+        var trend3 float64
+
+	price = 0
+	amount = 0
+
+        fmt.Printf("Get buy price %v\n",pair)
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        select l.limitbuy, l.current, l.trend1, l.trend2, l.trend3 from yourlimits l 
+        where l.pair = $1
+	AND LOWER(l.exchange) = $2;`
+
+        err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&trend1,&trend2,&trend3)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+
+	fmt.Printf("C: %f, L: %f, T1: %f, T2: %f, T3: %f\n",current,limit,trend1,trend2,trend3)
+
+	if current < limit {
+		if (trend2 < -1) && (trend1 < -0.1) {
+			fmt.Println("Wait due to trend")
+		} else {
+			price = limit
+			amount = float64(invest_amount)/price
+                	fmt.Printf("Price: %f\n",limit)
+        	}
+	}
+
+	fmt.Printf("A: %f, P: %f\n",amount,price)
+
+        return
+}
+
+
 func getSellPrice(pair string) (price float64, amount float64, err error) {
 	var rate float64
 	var current float64
@@ -1717,3 +1763,39 @@ func processMinMax() {
         }
 }
 
+func calculateProfit(){
+	var price float64
+	var amount float64
+	var side string
+
+        fmt.Println("Calculate profit")
+
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        select price, amount, side from yourorder
+        where LOWER(exchange) = $1
+	AND status = 'FILLED'
+        order by pair, "timestamp";`
+
+        rows, err := db.Query(sqlStatement, exchange_name)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+        defer rows.Close()
+
+//        var i int = 0;
+        for rows.Next(){
+                if err := rows.Scan(&price, &amount, &side); err != nil {
+                        fmt.Println(err)
+                }
+        }
+        if err := rows.Err(); err != nil {
+                fmt.Println(err)
+        }
+}
