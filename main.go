@@ -822,6 +822,7 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
 	var trend1 float64
         var trend2 float64
         var trend3 float64
+	var winrate float64
 
 	price = 0
 	amount = 0
@@ -846,9 +847,11 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
                 fmt.Printf("SQL error: %v\n",err)
         }
 
-	fmt.Printf("C: %f, L: %f, T1: %f, T3: %f\n",current,limit,trend1,trend3)
+	winrate = rate * ((100 + float64(minwin)) / 100)
 
-	if current > limit {
+	fmt.Printf("C: %f, L: %f, R: %f, T1: %f, T2: %f, T3: %f\n",current,limit,winrate,trend1,trend2,trend3)
+
+	if current > limit && current > winrate {
 		if (trend2 > 1) && (trend1 > 0.1) {
 			fmt.Println("Wait due to trend")
 		} else {
