@@ -129,6 +129,7 @@ func main() {
 			deleteStats()
 			insertStats()
 			updateStats()
+			processMinMax()
 			calculateLimit()
 			calculateTrends()
 			deleteAccounts()
@@ -140,6 +141,14 @@ func main() {
 			sellOrders()
 			os.Exit(0)
         	}
+                if a1 == "sell" {
+                        sellOrders()
+                        os.Exit(0)
+                }
+                if a1 == "test" {
+                        processMinMax()
+                        os.Exit(0)
+                }
                 if a1 == "butsell" {
                         time.Sleep(15 * time.Second)
                         getCandles()
@@ -147,6 +156,7 @@ func main() {
                         deleteStats()
                         insertStats()
                         updateStats()
+			processMinMax()
                         calculateLimit()
                         calculateTrends()
                         writeCharts()
@@ -463,6 +473,72 @@ func insertStats() {
         }
 }
 
+func calculateMinMax(pair string) {
+        var advicePeriod int64 = 7 * 24
+        var intv string = "'168 hours'"
+	var min float64
+	var max float64
+	var last float64
+
+        parm,err := getParms("AdvicePeriod")
+        if err == nil {
+                advicePeriod = parm.intp
+                intv = fmt.Sprintf("'%d hours'",advicePeriod)
+        }
+
+        fmt.Printf("Calculate MinMax for pair %s\n",pair)
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        select close
+        from yourcandle
+        where "timestamp" > current_timestamp - interval ` + intv +  `
+        AND LOWER(exchange) = $1
+	AND pair = $2
+        order by close;`
+        rows, err := db.Query(sqlStatement,exchange_name,pair)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+        defer rows.Close()
+
+        var i int = 0;
+        for rows.Next(){
+		var cls float64
+                if err := rows.Scan(&cls); err != nil {
+                        fmt.Println(err)
+                } else {
+			if i == 1 {
+				min = cls
+			}
+                        if i > 0 {
+                                max = last
+                        }
+			last = cls
+		}
+		i++
+        }
+        if err := rows.Err(); err != nil {
+                fmt.Println(err)
+        }
+	fmt.Printf("Min: %f, Max: %f\n",min,max)
+
+        sqlStatement = `
+        UPDATE yourlimits 
+	SET min = $1, max = $2
+        where pair = $3
+        AND LOWER(exchange) = $4;`
+        _, err = db.Exec(sqlStatement,min,max,pair,exchange_name)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+}
+
 func updateStats() {
         fmt.Println("Update statistics")
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
@@ -722,14 +798,14 @@ func getBuyPrice(pair string) (price float64, err error) {
         defer db.Close()
 
         sqlStatement := `
-		select limitbuy from yourlimits y 
-		where y.pair = $1
-		AND LOWER(y.exchange) = $2
-		and y.pair not in 
-		(select pair from yourposition p
-		where p.pair = $1
-		AND LOWER(p.exchange) = $2)
-		and y.trend3 > -1;`
+	select limitbuy from yourlimits y 
+	where y.pair = $1
+	AND LOWER(y.exchange) = $2
+	and y.pair not in 
+	(select pair from yourposition p
+	where p.pair = $1
+	AND LOWER(p.exchange) = $2)
+	and y.trend3 > -1;`
 
         err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&price)
         if err != nil {
@@ -746,10 +822,6 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
 	var trend1 float64
         var trend2 float64
         var trend3 float64
-	var winperc float64 = (100 + float64(minwin) / 100)
-
-	var trendrate float64 = 0
-	var limitrate float64 = 0
 
 	price = 0
 	amount = 0
@@ -763,34 +835,27 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
         defer db.Close()
 
         sqlStatement := `
-                select l.limitsell, l.current, l.trend1, l.trend2, l.trend3, p.rate, p.amount*0.995 as amount from yourlimits l, yourposition p 
-                where l.pair = $1
-		AND LOWER(l.exchange) = $2
-                and p.pair = $1
-		AND LOWER(p.exchange) = $2;`
+        select l.limitsell, l.current, l.trend1, l.trend2, l.trend3, p.rate, p.amount*0.995 as amount from yourlimits l, yourposition p 
+        where l.pair = $1
+	AND LOWER(l.exchange) = $2
+        and p.pair = $1
+	AND LOWER(p.exchange) = $2;`
 
         err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&trend1,&trend2,&trend3,&rate,&amnt)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
 
-	fmt.Printf("C: %f, R: %f, T1: %f, T3: %f\n",current,rate,trend1,trend3)
+	fmt.Printf("C: %f, L: %f, T1: %f, T3: %f\n",current,limit,trend1,trend3)
 
-	if ((trend3 >= 1) && (trend1 < 0.1) && (current * 0.98 > rate) && (current > rate * winperc)) {
-		amount = amnt
-		trendrate = current * 0.98
-		fmt.Printf("Trendrate: %f\n",trendrate)
-	}
-
-        if ((current > limit) && (limit > rate * winperc)) {
-                amount = amnt
-                limitrate = limit
-                fmt.Printf("Limitrate: %f\n",limitrate)
-        }
-
-	price = limitrate
-	if trendrate > limitrate {
-		price = trendrate
+	if current > limit {
+		if (trend2 > 1) && (trend1 > 0.1) {
+			fmt.Println("Wait due to trend")
+		} else {
+                	amount = amnt
+			price = limit
+                	fmt.Printf("Price: %f\n",limit)
+        	}
 	}
 
 	fmt.Printf("A: %f, P: %f\n",amount,price)
@@ -1640,3 +1705,10 @@ func writeCharts() {
                 writeChart(v)
         }
 }
+
+func processMinMax() {
+        for _, v := range pairs {
+                calculateMinMax(v)
+        }
+}
+
