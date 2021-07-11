@@ -1694,6 +1694,8 @@ func writeChart(pair string) {
 ]
   );
   var options = {
+    width:  '100%',
+    height: '800px'
   };
   var graph2d = new vis.Graph2d(container, items, options);
 </script>
