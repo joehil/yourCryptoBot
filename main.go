@@ -138,6 +138,7 @@ func main() {
 			processOrders()
 			deleteOrders()
                         writeCharts()
+			buyOrders()
 			sellOrders()
 			os.Exit(0)
         	}
@@ -805,7 +806,9 @@ func getBuyPrice(pair string) (price float64, err error) {
 	(select pair from yourposition p
 	where p.pair = $1
 	AND LOWER(p.exchange) = $2)
-	and y.trend3 > -1;`
+	and y.trend3 > -1
+	and not current < min
+	and not potwin < 3;`
 
         err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&price)
         if err != nil {
@@ -837,7 +840,11 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
         sqlStatement := `
         select l.limitbuy, l.current, l.min, l.potwin, l.trend1, l.trend2, l.trend3 from yourlimits l 
         where l.pair = $1
-	AND LOWER(l.exchange) = $2;`
+	AND LOWER(l.exchange) = $2
+        and l.pair not in
+        (select pair from yourposition p
+        where p.pair = $1
+        AND LOWER(p.exchange) = $2);`
 
         err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&min,&potwin,&trend1,&trend2,&trend3)
         if err != nil {
@@ -847,7 +854,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 	fmt.Printf("C: %f, L: %f, M: %f, P: %f, T1: %f, T2: %f, T3: %f\n",current,limit,min,potwin,trend1,trend2,trend3)
 
 	if (current < limit) && (potwin > float64(minwin) + 1) {
-		if ((trend2 < -1) && (trend1 < -0.1)) || (current < min) {
+		if ((trend2 < -0.8) && (trend1 < -0.1)) || (current < min) {
 			fmt.Println("Wait due to trend")
 		} else {
 			price = limit
@@ -901,7 +908,7 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
 	fmt.Printf("C: %f, L: %f, M: %f, R: %f, T1: %f, T2: %f, T3: %f\n",current,limit,max,winrate,trend1,trend2,trend3)
 
 	if current > limit && current > winrate {
-		if ((trend2 > 1) && (trend1 > 0.1 )) || (current > max) {
+		if ((trend2 > 0.8) && (trend1 > 0.1 )) || (current > max) {
 			fmt.Println("Wait due to trend")
 		} else {
                 	amount = amnt
@@ -1504,6 +1511,22 @@ func buyOrders() {
 
                 if len(string(out)) < 10 {
                         fmt.Println("No open order")
+                        newprice,newamount,err := getBuyPriceNew(v)
+                        if err != nil {
+                                fmt.Printf("Price error: %v\n", err)
+                                continue
+                        }
+                        if newprice > 0 {
+                                fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
+                                out := submitOrder(v,"BUY","LIMIT",newamount,newprice,"automatic-new")
+                                fmt.Println(string(out))
+                        }
+                        continue
+                }
+
+
+ /*               if len(string(out)) < 10 {
+                        fmt.Println("No open order")
                         newprice,err := getBuyPrice(v)
                         if err != nil {
 	                        fmt.Printf("Price error: %v\n", err)
@@ -1513,7 +1536,7 @@ func buyOrders() {
 			out := submitOrder(v,"BUY","LIMIT",float64(invest_amount)/newprice,newprice,"automatic-new")
 			fmt.Println(string(out))
 			continue
-                }
+                } */
 
                 err := json.Unmarshal(out, &pack)
                 if err != nil { // Handle JSON errors
@@ -1540,14 +1563,25 @@ func buyOrders() {
                 		}
 				status := resp["status"].(string)
 				if status == "success" {
-					newprice,err := getBuyPrice(v)
+/*					newprice,err := getBuyPrice(v)
 	                                if err != nil {
 	                                        fmt.Printf("Price error: %v\n", err)
                                         	continue
 	                                }
 		                        fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
                 		        out := submitOrder(v,"BUY","LIMIT",float64(invest_amount)/newprice,newprice,"automatic-update")
-                        		fmt.Println(string(out))
+                        		fmt.Println(string(out)) */
+
+		                        newprice,newamount,err := getBuyPriceNew(v)
+                		        if err != nil {
+                                		fmt.Printf("Price error: %v\n", err)
+                                		continue
+                        		}
+                        		if newprice > 0 {
+                                		fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
+                                		out := submitOrder(v,"BUY","LIMIT",newamount,newprice,"automatic-new")
+                                		fmt.Println(string(out))
+                        		}
 				}
 			}
                 }
