@@ -817,6 +817,8 @@ func getBuyPrice(pair string) (price float64, err error) {
 func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 	var current float64
 	var limit float64
+	var min float64
+	var potwin float64
 	var trend1 float64
         var trend2 float64
         var trend3 float64
@@ -833,19 +835,19 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
         defer db.Close()
 
         sqlStatement := `
-        select l.limitbuy, l.current, l.trend1, l.trend2, l.trend3 from yourlimits l 
+        select l.limitbuy, l.current, l.min, l.potwin, l.trend1, l.trend2, l.trend3 from yourlimits l 
         where l.pair = $1
 	AND LOWER(l.exchange) = $2;`
 
-        err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&trend1,&trend2,&trend3)
+        err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&min,&potwin,&trend1,&trend2,&trend3)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
 
-	fmt.Printf("C: %f, L: %f, T1: %f, T2: %f, T3: %f\n",current,limit,trend1,trend2,trend3)
+	fmt.Printf("C: %f, L: %f, M: %f, P: %f, T1: %f, T2: %f, T3: %f\n",current,limit,min,potwin,trend1,trend2,trend3)
 
-	if current < limit {
-		if (trend2 < -1) && (trend1 < -0.1) {
+	if (current < limit) && (potwin > float64(minwin) + 1) {
+		if ((trend2 < -1) && (trend1 < -0.1)) || (current < min) {
 			fmt.Println("Wait due to trend")
 		} else {
 			price = limit
@@ -865,6 +867,7 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
 	var current float64
 	var limit float64
 	var amnt float64
+	var max float64
 	var trend1 float64
         var trend2 float64
         var trend3 float64
@@ -882,23 +885,23 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
         defer db.Close()
 
         sqlStatement := `
-        select l.limitsell, l.current, l.trend1, l.trend2, l.trend3, p.rate, p.amount*0.995 as amount from yourlimits l, yourposition p 
+        select l.limitsell, l.current, l.max, l.trend1, l.trend2, l.trend3, p.rate, p.amount*0.995 as amount from yourlimits l, yourposition p 
         where l.pair = $1
 	AND LOWER(l.exchange) = $2
         and p.pair = $1
 	AND LOWER(p.exchange) = $2;`
 
-        err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&trend1,&trend2,&trend3,&rate,&amnt)
+        err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&max,&trend1,&trend2,&trend3,&rate,&amnt)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
 
 	winrate = rate * ((100 + float64(minwin)) / 100)
 
-	fmt.Printf("C: %f, L: %f, R: %f, T1: %f, T2: %f, T3: %f\n",current,limit,winrate,trend1,trend2,trend3)
+	fmt.Printf("C: %f, L: %f, M: %f, R: %f, T1: %f, T2: %f, T3: %f\n",current,limit,max,winrate,trend1,trend2,trend3)
 
 	if current > limit && current > winrate {
-		if (trend2 > 1) && (trend1 > 0.1) {
+		if ((trend2 > 1) && (trend1 > 0.1 )) || (current > max) {
 			fmt.Println("Wait due to trend")
 		} else {
                 	amount = amnt
