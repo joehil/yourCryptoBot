@@ -44,6 +44,7 @@ import (
 var pipeFile = "/tmp/yourpipe"
 
 var do_trace bool = true
+var sleepbeforerun int
 
 var exchange_name string
 
@@ -124,6 +125,7 @@ func main() {
 
         	a1 := os.Args[2]
         	if a1 == "cron" {
+                        time.Sleep(time.Duration(sleepbeforerun) * time.Second)
 			getCandles()
 			deleteCandles()
 			deleteStats()
@@ -1083,6 +1085,7 @@ func read_config() {
         tradepairs = viper.GetStringSlice("tradepairs")
 
         do_trace = viper.GetBool("do_trace")
+	sleepbeforerun = viper.GetInt("sleepbeforerun")
 
         exchange_name = viper.GetString("exchange_name")
 
@@ -1123,6 +1126,7 @@ func read_config() {
 
 	if do_trace {
 		fmt.Println("do_trace: ",do_trace)
+                fmt.Printf("sleepbeforerun: %d\n",sleepbeforerun)
                 fmt.Printf("exchange_name: %s\n",exchange_name)
                 fmt.Printf("limit_depth: %d\n",limit_depth)
                 fmt.Printf("invest_amount: %d\n",invest_amount)
