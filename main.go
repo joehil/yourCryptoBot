@@ -628,8 +628,9 @@ func deleteAccounts() {
         defer db.Close()
 
         sqlStatement := `
-        delete from youraccount;`
-        _, err = db.Exec(sqlStatement)
+        delete from youraccount
+	WHERE exchange = $1;`
+        _, err = db.Exec(sqlStatement,exchange_name)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
