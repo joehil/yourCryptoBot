@@ -188,6 +188,10 @@ func main() {
 			sellOrders()
                         os.Exit(0)
                 }
+                if a1 == "forceorder" {
+                        forceOrder(os.Args[3],os.Args[4],os.Args[5])
+                        os.Exit(0)
+                }
                 if a1 == "telegram" {
                         sendTelegram()
                         os.Exit(0)
@@ -647,8 +651,9 @@ func deleteOrders() {
 
         sqlStatement := `
         delete from yourorder
-	where status = 'CANCELLED';`
-        _, err = db.Exec(sqlStatement)
+	where status = 'CANCELLED'
+	AND LOWER(exchange) = $1;`
+        _, err = db.Exec(sqlStatement,exchange_name)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -857,7 +862,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 	fmt.Printf("C: %f, L: %f, M: %f, P: %f, T1: %f, T2: %f, T3: %f\n",current,limit,min,potwin,trend1,trend2,trend3)
 
 	if (current < limit) && (potwin > float64(minwin) + 1) {
-		if ((trend2 < -0.8) && (trend1 < -0.1)) || (current < min) {
+		if (trend2 < -0.8) || (current < min) || (trend1 < 0.1) {
 			fmt.Println("Wait due to trend")
 		} else {
 			price = limit
@@ -1440,9 +1445,10 @@ func processOrders() {
         sqlStatement := `
         select pair, id  from yourorder
         where status = 'NEW'
+	AND LOWER(exchange) = $1
         order by "timestamp";`
 
-        rows, err := db.Query(sqlStatement)
+        rows, err := db.Query(sqlStatement,exchange_name)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -1468,13 +1474,19 @@ func processOrders() {
                         o.id = order["id"].(string)
                         o.base_currency = order["base_currency"].(string)
                         o.quote_currency = order["quote_currency"].(string)
-                        o.asset = order["asset_type"].(string)
+                        if order["asset_type"] != nil {
+				o.asset = order["asset_type"].(string)
+			}
                         o.order_side = order["order_side"].(string) 
                         o.order_type = order["order_type"].(string)
                         o.creation_time = order["creation_time"].(float64)
-                        o.update_time = order["update_time"].(float64)
+			if order["update_time"] != nil {
+	                        o.update_time = order["update_time"].(float64)
+			}
                         o.status = order["status"].(string)
-                        o.price = order["price"].(float64)
+			if order["price"] != nil {
+                        	o.price = order["price"].(float64)
+			}
                         o.amount = order["amount"].(float64)
 			if order["cost"] != nil {
                         	o.cost = order["cost"].(float64)
@@ -1839,5 +1851,23 @@ func calculateProfit(){
         }
         if err := rows.Err(); err != nil {
                 fmt.Println(err)
+        }
+}
+
+func forceOrder(pair string, price string, passcode string) {
+	var newamount float64
+
+        valid := totp.Validate(passcode, key_secret)
+        if valid {
+        	newprice, err := strconv.ParseFloat(price, 64)
+		if err != nil {
+			panic(err)
+		}
+		newamount = float64(invest_amount)/newprice
+                fmt.Printf("Price: %f, Amount: %f\n",newprice,newamount)
+                out := submitOrder(pair,"BUY","LIMIT",newamount,newprice,"force-order")
+                fmt.Println(string(out))
+        } else {
+                println("Invalid passcode!")
         }
 }
