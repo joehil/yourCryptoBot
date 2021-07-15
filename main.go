@@ -1171,12 +1171,18 @@ func readOrders() {
                         o.id = ord["id"].(string)
                         o.base_currency = ord["base_currency"].(string)
                         o.quote_currency = ord["quote_currency"].(string)
-                        o.asset = ord["asset_type"].(string)
+			if ord["asset_type"] != nil { 
+				o.asset = ord["asset_type"].(string)
+			}
                         o.order_side = ord["order_side"].(string) 
                         o.order_type = ord["order_type"].(string)
                         o.creation_time = ord["creation_time"].(float64)
-                        o.update_time = ord["update_time"].(float64)
-                        o.status = ord["status"].(string)
+			if ord["update_time"] != nil {
+                        	o.update_time = ord["update_time"].(float64)
+			}
+			if ord["status"] != nil {
+                        	o.status = ord["status"].(string)
+			}
                         o.price = ord["price"].(float64)
                         o.amount = ord["amount"].(float64)
                         o.open_volume = ord["open_volume"].(float64)
