@@ -116,7 +116,6 @@ func main() {
 		for _, v := range os.Args {
 		    	if v == "gethistoriccandles" {
 				getCandles()
-				fmt.Println("Gefunden")
 				os.Exit(0)
     			}
 		}
@@ -208,21 +207,31 @@ resp, err := client.R().
       }).
       SetHeader("Accept", "application/json").
       SetAuthToken("BC594900518B4F7EAC75BD37F019E08FBC594900518B4F7EAC75BD37F019E08F").
-      Get("/search_result")
+      Get("https://www.bitstamp.net/api/")
+
+
+//fmt.Println(err)
+//fmt.Println(string(resp.Body()))
 
 
 // Sample of using Request.SetQueryString method
-resp, err := client.R().
+resp, err = client.R().
       SetQueryString("productId=232&template=fresh-sample&cat=resty&source=google&kw=buy a lot more").
       SetHeader("Accept", "application/json").
       SetAuthToken("BC594900518B4F7EAC75BD37F019E08FBC594900518B4F7EAC75BD37F019E08F").
-      Get("/show_product")
+      Get("https://www.bitstamp.net/api/v2/ohlc/etheur/?limit=1&step=900")
 
 
 // If necessary, you can force response content type to tell Resty to parse a JSON response into your struct
-resp, err := client.R().
+/*resp, err = client.R().
       SetResult(result).
       ForceContentType("application/json").
-      Get("v2/alpine/manifests/latest")
+      Get("v2/alpine/manifests/latest") */
+
+if err != nil {
+	fmt.Println(err)
+} else {
+	fmt.Println(string(resp.Body()))
+}
 
 }
