@@ -377,7 +377,7 @@ func deletePositions(exchange string, pair string) {
 
         sqlStatement := `
         DELETE FROM yourposition
-        WHERE exchange = $1 and pair = $2;`
+        WHERE exchange = $1 and pair = $2 and active = true;`
         _, err = db.Exec(sqlStatement, exchange, pair)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
@@ -852,6 +852,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
         and l.pair not in
         (select pair from yourposition p
         where p.pair = $1
+	AND active = true
         AND LOWER(p.exchange) = $2);`
 
         err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&min,&potwin,&trend1,&trend2,&trend3)
@@ -862,9 +863,12 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 	fmt.Printf("C: %f, L: %f, M: %f, P: %f, T1: %f, T2: %f, T3: %f\n",current,limit,min,potwin,trend1,trend2,trend3)
 
 	if (current < limit) && (potwin > float64(minwin) + 1) {
-		if (trend2 < -0.8) || (current < min) || (trend1 < 0.1) {
-			fmt.Println("Wait due to trend")
-		} else {
+		var dobuy bool = false
+		if (current >= min) && (trend2 < -1) && (trend1 > 0.1) {
+			dobuy = true
+			fmt.Println("Rule 1")
+		}
+		if dobuy {
 			price = limit
 			amount = float64(invest_amount)/price
                 	fmt.Printf("Price: %f\n",limit)
@@ -904,7 +908,8 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
         where l.pair = $1
 	AND LOWER(l.exchange) = $2
         and p.pair = $1
-	AND LOWER(p.exchange) = $2;`
+	AND LOWER(p.exchange) = $2
+	AND p.active = true;`
 
         err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&max,&trend1,&trend2,&trend3,&rate,&amnt)
         if err != nil {
@@ -1501,11 +1506,11 @@ func processOrders() {
 
 			storeOrder(o.exchange,o.id,o.base_currency+"-"+o.quote_currency,o.asset,o.order_side,o.order_type,o.update_time,o.status,o.price,o.amount)
 			
-			if o.status == "FILLED" && o.order_side == "BUY" {
+			if (o.status == "FILLED" || o.status == "CLOSED") && o.order_side == "BUY" {
 				insertPositions(o.exchange,o.base_currency+"-"+o.quote_currency,o.order_side,time.Unix(int64(o.update_time), 0),o.price,o.amount)
                         	submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" bought")
 			}
-                        if o.status == "FILLED" && o.order_side == "SELL" {
+                        if (o.status == "FILLED" || o.status == "CLOSED") && o.order_side == "SELL" {
 				deletePositions(o.exchange, o.base_currency+"-"+o.quote_currency)
                                 submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" sold")
                         }
