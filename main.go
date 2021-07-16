@@ -868,7 +868,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 			dobuy = true
 			fmt.Println("Rule 1")
 		}
-                if (current >= min) && (trend3 < -0.3) && (trend2 < -0.1) && (trend1 > 0.1) {
+                if (current >= min) && (trend3 < -0.3) && (trend2 < -0.1) && (trend2 > -0.5) && (trend1 > 0.1) {
                         dobuy = true
                         fmt.Println("Rule 2")
                 }

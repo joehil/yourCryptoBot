@@ -20,17 +20,18 @@ package main
 
 import (
 	"os"
-//	"os/exec"
+	"os/exec"
 	"fmt"
 //	"bufio"
 	"time"
 //	"strings"
-/*	"strconv"
-	"syscall"
+  	"strconv"
+/*	"syscall"
 	"bytes"
 	"math"
 	"io/ioutil"
 	"encoding/json" */ 
+	"github.com/go-resty/resty/v2"
 	"github.com/spf13/viper"
 )
 
@@ -92,8 +93,6 @@ type Order struct {
 }
 
 func main() {
-	fmt.Printf("%v\n", time.Now().String())
-
 // Set location of config 
 	dirname, err := os.UserHomeDir()
     	if err != nil {
@@ -104,8 +103,8 @@ func main() {
 	viper.AddConfigPath(dirname+"/.yourCryptoBot/")   // path to look for the config file in
 
 // Get commandline args
-	if len(os.Args) > 2 {
-		exc := os.Args[1]
+	if len(os.Args) > 1 {
+		exc := "bitstamp"
 		viper.SetConfigName(exc) // name of config file (name of exchange)
 // Read config
 		read_config()
@@ -114,13 +113,24 @@ func main() {
 			panic("Wrong exchange")
 		}
 
-        	a1 := os.Args[2]
-                if a1 == "chart" {
-//                        writeCharts()
-                        os.Exit(0)
-                }
-		fmt.Println("parameter invalid")
-		os.Exit(-1)
+		for _, v := range os.Args {
+		    	if v == "gethistoriccandles" {
+				getCandles()
+				fmt.Println("Gefunden")
+				os.Exit(0)
+    			}
+		}
+
+		argsWithoutProg := os.Args[1:]
+		fmt.Println(argsWithoutProg)
+		fmt.Println(gctcmd)
+
+		out, err := exec.Command(gctcmd, argsWithoutProg...).Output()
+        	if err != nil {
+                	fmt.Printf("Command finished with error: %v", err)
+        	}
+		fmt.Println(string(out))
+                os.Exit(0)
 	}
 	if len(os.Args) == 1 {
 		myUsage()
@@ -181,5 +191,38 @@ func read_config() {
 }
 
 func myUsage() {
+
+}
+
+func getCandles() {
+// Create a Resty Client
+client := resty.New()
+
+resp, err := client.R().
+      SetQueryParams(map[string]string{
+          "page_no": "1",
+          "limit": "20",
+          "sort":"name",
+          "order": "asc",
+          "random":strconv.FormatInt(time.Now().Unix(), 10),
+      }).
+      SetHeader("Accept", "application/json").
+      SetAuthToken("BC594900518B4F7EAC75BD37F019E08FBC594900518B4F7EAC75BD37F019E08F").
+      Get("/search_result")
+
+
+// Sample of using Request.SetQueryString method
+resp, err := client.R().
+      SetQueryString("productId=232&template=fresh-sample&cat=resty&source=google&kw=buy a lot more").
+      SetHeader("Accept", "application/json").
+      SetAuthToken("BC594900518B4F7EAC75BD37F019E08FBC594900518B4F7EAC75BD37F019E08F").
+      Get("/show_product")
+
+
+// If necessary, you can force response content type to tell Resty to parse a JSON response into your struct
+resp, err := client.R().
+      SetResult(result).
+      ForceContentType("application/json").
+      Get("v2/alpine/manifests/latest")
 
 }

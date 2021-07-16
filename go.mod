@@ -3,6 +3,7 @@ module yourCryptoBot/yourCryptoBot
 go 1.16
 
 require (
+	github.com/go-resty/resty/v2 v2.4.0
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 	github.com/kr/text v0.2.0 // indirect
@@ -24,4 +25,5 @@ require (
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/ini.v1 v1.60.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+	github.com/joehil/yourCryptoBot/exchanges/bitstamp v1
 )
