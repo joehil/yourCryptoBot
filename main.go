@@ -275,8 +275,12 @@ func getCandles() {
 			fmt.Printf("JSON input: %v\n",string(out))
 			continue
         	}
-		start = cand["start"].(string)
-                end = cand["end"].(string)
+		if cand["start"] != nil {
+			start = cand["start"].(string)
+		}
+		if cand["end"] != nil {
+                	end = cand["end"].(string)
+		}
                 exchange = cand["exchange"].(string)
                 interval = cand["interval"].(string)
 		pair = cand["pair"].(map[string]interface{})

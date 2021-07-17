@@ -26,12 +26,12 @@ import (
 //	"bufio"
 	"time"
 	"strings"
-//  	"strconv"
+  	"strconv"
 /*	"syscall"
 	"bytes"
 	"math"
-	"io/ioutil"
-	"encoding/json" */ 
+	"io/ioutil" */
+	"encoding/json" 
 	"github.com/go-resty/resty/v2"
 	"github.com/spf13/viper"
 )
@@ -198,10 +198,34 @@ func getCandles() {
 var pFlag string
 var iFlag string
 var limitFlag string
+var rpcuserFlag string
+var rpcpasswordFlag string
+var excFlag string
+var assetFlag string
+var startFlag string
+var endFlag string
+var data map[string]interface{}
+var candle map[string]interface{}
+var ohlc []interface{}
+var layout string = "2006-01-02 15:04:05 MST"
+var open string
+var close string
+var low string
+var high string
+var volume string
+var itime int64
+
+var out string
 
 flag.StringVarP(&pFlag, "pair", "p", "ETH-EUR", "Currency pair")
 flag.StringVarP(&iFlag, "interval", "i", "900", "Interval")
 flag.StringVarP(&limitFlag, "limit" , "l", "1", "Limit")
+flag.StringVarP(&rpcuserFlag, "rpcuser" , "u", "admin", "RPC user")
+flag.StringVarP(&rpcpasswordFlag, "rpcpassword" , "w", "password", "RPC password")
+flag.StringVarP(&excFlag, "exchange" , "e", "bitstamp", "Exchange name")
+flag.StringVarP(&assetFlag, "asset" , "a", "SPOT", "Asset")
+flag.StringVarP(&startFlag, "start" , "s", "", "Start time")
+flag.StringVarP(&endFlag, "end" , "x", "", "End time")
 
 flag.Parse()
 
@@ -217,8 +241,63 @@ resp, err := client.R().
 
 if err != nil {
 	fmt.Println(err)
-} else {
-	fmt.Println(string(resp.Body()))
+	return
 }
+
+err = json.Unmarshal(resp.Body(), &data)
+if err != nil { // Handle JSON errors 
+	fmt.Printf("JSON error: %v\n", err)
+	fmt.Printf("JSON input: %v\n", resp.Body())
+	return
+}
+
+candle = data["data"].(map[string]interface{})
+pair := candle["pair"].(string)
+ohlc = candle["ohlc"].([]interface{})
+
+pairs := strings.Split(pair, "/")
+
+out = "{\n"
+out += " \"exchange\": \""+exchange_name+"\",\n"
+out += " \"pair\": {\n"
+out += "  \"delimiter\": \"-\",\n"
+out += "  \"base\": \""+pairs[0]+"\",\n"
+out += "  \"quote\": \""+pairs[1]+"\"\n"
+out += " },\n"
+out += " \"interval\": \""+iFlag+"\",\n"
+out += " \"candle\": [\n"
+
+for _, cndl := range ohlc {
+	cn := cndl.(map[string]interface{})
+	if cn != nil {
+		open = cn["open"].(string)
+                close = cn["close"].(string)
+		if cn["volume"] != nil {
+      	        	volume = cn["volume"].(string)
+		} else {
+			volume = "0"
+		}
+               	low = cn["low"].(string)
+       	        high = cn["high"].(string)
+		itime,err = strconv.ParseInt(cn["timestamp"].(string),10,64)
+		t := time.Unix(itime,0)
+	        if err != nil {
+       			fmt.Printf("Time conversion error: %v", err)
+ 		}
+		out += "  {\n"
+		out += "   \"time\": \""+t.Format(layout)+"\",\n"
+                out += "   \"low\": "+low+",\n"
+                out += "   \"high\": "+high+",\n"
+                out += "   \"open\": "+open+",\n"
+                out += "   \"close\": "+close+",\n"
+                out += "   \"volume\": "+volume+"\n"
+		out += "  }\n"
+		}
+} 
+
+out += " ]\n"
+out += "}\n"
+
+fmt.Print(out)
 
 }
