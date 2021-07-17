@@ -22,11 +22,14 @@ import (
 	"os"
 	"os/exec"
 	"fmt"
+	"io"
 	flag "github.com/spf13/pflag"
 //	"bufio"
 	"time"
 	"strings"
   	"strconv"
+	"crypto/hmac"
+	"crypto/sha256"
 /*	"syscall"
 	"bytes"
 	"math"
@@ -34,6 +37,7 @@ import (
 	"encoding/json" 
 	"github.com/go-resty/resty/v2"
 	"github.com/spf13/viper"
+	"github.com/google/uuid"
 )
 
 var pipeFile = "/tmp/yourpipe"
@@ -65,6 +69,10 @@ var pricecomma map[string]string
 var key_issuer string
 var key_account string
 var key_secret string
+
+var apikey string
+var apisecret string
+var apiclient string
 
 type Parm struct {
 	key string
@@ -119,6 +127,10 @@ func main() {
 				getCandles()
 				os.Exit(0)
     			}
+                        if v == "getaccountinfo" {
+                                getAccount()
+                                os.Exit(0)
+                        }
 		}
 
 		argsWithoutProg := os.Args[1:]
@@ -164,6 +176,10 @@ func read_config() {
         key_issuer = viper.GetString("key_issuer")
         key_account = viper.GetString("key_account")
         key_secret = viper.GetString("key_secret")
+
+        apikey = viper.GetString("apikey")
+        apiclient = viper.GetString("apiclient")
+        apisecret = viper.GetString("apisecret")
 
 	amountcomma = viper.GetStringMapString("amountcomma")
         pricecomma = viper.GetStringMapString("pricecomma")
@@ -299,5 +315,131 @@ out += " ]\n"
 out += "}\n"
 
 fmt.Print(out)
+
+}
+
+func getAccount() {
+var pFlag string
+var iFlag string
+var limitFlag string
+var rpcuserFlag string
+var rpcpasswordFlag string
+var excFlag string
+var assetFlag string
+var startFlag string
+var endFlag string
+/*var data map[string]interface{}
+var candle map[string]interface{}
+var ohlc []interface{}
+var layout string = "2006-01-02 15:04:05 MST"
+var open string
+var close string
+var low string
+var high string
+var volume string
+var itime int64
+
+var out string */
+
+flag.StringVarP(&pFlag, "pair", "p", "ETH-EUR", "Currency pair")
+flag.StringVarP(&iFlag, "interval", "i", "900", "Interval")
+flag.StringVarP(&limitFlag, "limit" , "l", "1", "Limit")
+flag.StringVarP(&rpcuserFlag, "rpcuser" , "u", "admin", "RPC user")
+flag.StringVarP(&rpcpasswordFlag, "rpcpassword" , "w", "password", "RPC password")
+flag.StringVarP(&excFlag, "exchange" , "e", "bitstamp", "Exchange name")
+flag.StringVarP(&assetFlag, "asset" , "a", "SPOT", "Asset")
+flag.StringVarP(&startFlag, "start" , "s", "", "Start time")
+flag.StringVarP(&endFlag, "end" , "x", "", "End time")
+
+flag.Parse()
+
+pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
+
+// Create a Resty Client
+client := resty.New()
+
+timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
+
+nonce := uuid.New().String()
+
+var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/balance/"+pFlag+"/"+""+
+                      ""+nonce+timest+"v2"
+
+hash := hmac.New(sha256.New, []byte(apisecret))
+io.WriteString(hash, toSign)
+signature := fmt.Sprintf("%x", hash.Sum(nil))
+
+resp, err := client.R().
+      SetHeader("Accept", "application/json").
+      SetHeader("X-Auth", "BITSTAMP "+apikey).
+      SetHeader("X-Auth-Signature", signature).
+      SetHeader("X-Auth-Nonce", nonce).
+      SetHeader("X-Auth-Timestamp", timest).
+      SetHeader("X-Auth-Version", "v2").
+      Post("https://www.bitstamp.net/api/v2/balance/"+pFlag+"/")
+
+if err != nil {
+	fmt.Println(err)
+	return
+}
+
+fmt.Println(resp.String())
+
+/*
+err = json.Unmarshal(resp.Body(), &data)
+if err != nil { // Handle JSON errors 
+	fmt.Printf("JSON error: %v\n", err)
+	fmt.Printf("JSON input: %v\n", resp.Body())
+	return
+}
+
+candle = data["data"].(map[string]interface{})
+pair := candle["pair"].(string)
+ohlc = candle["ohlc"].([]interface{})
+
+pairs := strings.Split(pair, "/")
+
+out = "{\n"
+out += " \"exchange\": \""+exchange_name+"\",\n"
+out += " \"pair\": {\n"
+out += "  \"delimiter\": \"-\",\n"
+out += "  \"base\": \""+pairs[0]+"\",\n"
+out += "  \"quote\": \""+pairs[1]+"\"\n"
+out += " },\n"
+out += " \"interval\": \""+iFlag+"\",\n"
+out += " \"candle\": [\n"
+
+for _, cndl := range ohlc {
+	cn := cndl.(map[string]interface{})
+	if cn != nil {
+		open = cn["open"].(string)
+                close = cn["close"].(string)
+		if cn["volume"] != nil {
+      	        	volume = cn["volume"].(string)
+		} else {
+			volume = "0"
+		}
+               	low = cn["low"].(string)
+       	        high = cn["high"].(string)
+		itime,err = strconv.ParseInt(cn["timestamp"].(string),10,64)
+		t := time.Unix(itime,0)
+	        if err != nil {
+       			fmt.Printf("Time conversion error: %v", err)
+ 		}
+		out += "  {\n"
+		out += "   \"time\": \""+t.Format(layout)+"\",\n"
+                out += "   \"low\": "+low+",\n"
+                out += "   \"high\": "+high+",\n"
+                out += "   \"open\": "+open+",\n"
+                out += "   \"close\": "+close+",\n"
+                out += "   \"volume\": "+volume+"\n"
+		out += "  }\n"
+		}
+} 
+
+out += " ]\n"
+out += "}\n"
+
+fmt.Print(out) */
 
 }
