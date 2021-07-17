@@ -22,10 +22,11 @@ import (
 	"os"
 	"os/exec"
 	"fmt"
+	"flag"
 //	"bufio"
 	"time"
-//	"strings"
-  	"strconv"
+	"strings"
+//  	"strconv"
 /*	"syscall"
 	"bytes"
 	"math"
@@ -114,7 +115,7 @@ func main() {
 		}
 
 		for _, v := range os.Args {
-		    	if v == "gethistoriccandles" {
+		    	if v == "gethistoriccandlesextended" {
 				getCandles()
 				os.Exit(0)
     			}
@@ -194,39 +195,27 @@ func myUsage() {
 }
 
 func getCandles() {
+var pFlag string
+var iFlag string
+var limitFlag string
+
+flag.StringVar(&pFlag, "p" , "ETH-EUR", "Currency pair")
+flag.StringVar(&iFlag, "i" , "900", "Interval")
+flag.StringVar(&limitFlag, "limit" , "1", "Limit")
+
+flag.Parse()
+
+pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
+
+fmt.Printf("i: %s, p: %s\n",iFlag,pFlag)
+
 // Create a Resty Client
 client := resty.New()
 
 resp, err := client.R().
-      SetQueryParams(map[string]string{
-          "page_no": "1",
-          "limit": "20",
-          "sort":"name",
-          "order": "asc",
-          "random":strconv.FormatInt(time.Now().Unix(), 10),
-      }).
+      SetQueryString("limit="+limitFlag+"&step="+iFlag).
       SetHeader("Accept", "application/json").
-      SetAuthToken("BC594900518B4F7EAC75BD37F019E08FBC594900518B4F7EAC75BD37F019E08F").
-      Get("https://www.bitstamp.net/api/")
-
-
-//fmt.Println(err)
-//fmt.Println(string(resp.Body()))
-
-
-// Sample of using Request.SetQueryString method
-resp, err = client.R().
-      SetQueryString("productId=232&template=fresh-sample&cat=resty&source=google&kw=buy a lot more").
-      SetHeader("Accept", "application/json").
-      SetAuthToken("BC594900518B4F7EAC75BD37F019E08FBC594900518B4F7EAC75BD37F019E08F").
-      Get("https://www.bitstamp.net/api/v2/ohlc/etheur/?limit=1&step=900")
-
-
-// If necessary, you can force response content type to tell Resty to parse a JSON response into your struct
-/*resp, err = client.R().
-      SetResult(result).
-      ForceContentType("application/json").
-      Get("v2/alpine/manifests/latest") */
+      Get("https://www.bitstamp.net/api/v2/ohlc/"+pFlag+"/")
 
 if err != nil {
 	fmt.Println(err)
