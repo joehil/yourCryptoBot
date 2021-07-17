@@ -22,7 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"fmt"
-	"flag"
+	flag "github.com/spf13/pflag"
 //	"bufio"
 	"time"
 	"strings"
@@ -199,15 +199,13 @@ var pFlag string
 var iFlag string
 var limitFlag string
 
-flag.StringVar(&pFlag, "p" , "ETH-EUR", "Currency pair")
-flag.StringVar(&iFlag, "i" , "900", "Interval")
-flag.StringVar(&limitFlag, "limit" , "1", "Limit")
+flag.StringVarP(&pFlag, "pair", "p", "ETH-EUR", "Currency pair")
+flag.StringVarP(&iFlag, "interval", "i", "900", "Interval")
+flag.StringVarP(&limitFlag, "limit" , "l", "1", "Limit")
 
 flag.Parse()
 
 pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
-
-fmt.Printf("i: %s, p: %s\n",iFlag,pFlag)
 
 // Create a Resty Client
 client := resty.New()
