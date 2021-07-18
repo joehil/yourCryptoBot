@@ -115,7 +115,7 @@ func main() {
 	if len(os.Args) > 2 {
 			exc := os.Args[1]
 			viper.SetConfigName(exc) // name of config file (name of exchange)
-			
+
 // Read config
 			read_config()
 
@@ -928,6 +928,22 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
 
 	fmt.Printf("C: %f, L: %f, M: %f, R: %f, T1: %f, T2: %f, T3: %f\n",current,limit,max,winrate,trend1,trend2,trend3)
 
+        if current > limit && current > winrate {
+                var dosell bool = false
+                if trend1 < 0.1 {
+                        dosell = true
+                        fmt.Println("Rule 1")
+                }
+                if dosell {
+                        amount = amnt
+                        price = limit
+                        fmt.Printf("Price: %f\n",limit)
+                }
+        }
+
+
+
+
 	if current > limit && current > winrate {
 		if ((trend2 > 0.8) && (trend1 > 0.1 )) || (current > max) {
 			fmt.Println("Wait due to trend")
@@ -1301,7 +1317,7 @@ func trend3(pair string) {
 	var coeff float64
 	var cls float64
 
-        fmt.Printf("Calculate trend24 %v\n",pair)
+        fmt.Printf("Calculate trend3 %v\n",pair)
 
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 

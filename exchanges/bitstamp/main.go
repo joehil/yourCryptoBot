@@ -155,6 +155,10 @@ func main() {
                                 getAccount()
                                 os.Exit(0)
                         }
+                        if v == "getorders" {
+                                getOrders()
+                                os.Exit(0)
+                        }
 		}
 
 /*		argsWithoutProg := os.Args[1:]
@@ -366,4 +370,41 @@ for _, v := range pairs {
         fmt.Printf("\"total_value\": %s,\n",c2)
 }
 
+}
+
+func getOrders() {
+//var data map[string]interface{}
+
+// Create a Resty Client
+client := resty.New()
+
+pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
+timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
+nonce := uuid.New().String()
+var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/open_orders/"+pFlag+"/"+""+
+                    ""+nonce+timest+"v2"
+hash := hmac.New(sha256.New, []byte(apisecret))
+io.WriteString(hash, toSign)
+signature := fmt.Sprintf("%x", hash.Sum(nil))
+resp, err := client.R().
+	SetHeader("Accept", "application/json").
+	SetHeader("X-Auth", "BITSTAMP "+apikey).
+	SetHeader("X-Auth-Signature", signature).
+	SetHeader("X-Auth-Nonce", nonce).
+	SetHeader("X-Auth-Timestamp", timest).
+	SetHeader("X-Auth-Version", "v2").
+	Post("https://www.bitstamp.net/api/v2/open_orders/"+pFlag+"/")
+if err != nil {
+	fmt.Println(err)
+	return
+}
+
+/*err = json.Unmarshal(resp.Body(), &data)
+if err != nil { // Handle JSON errors
+       	fmt.Printf("JSON error: %v\n", err)
+       	fmt.Printf("JSON input: %v\n", resp.Body())
+       	return
+} */
+
+fmt.Println(resp.String())
 }
