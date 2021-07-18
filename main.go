@@ -868,6 +868,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 
 	if (current < limit) && (potwin > float64(minwin) + 1) {
 		var dobuy bool = false
+                fmt.Println("Step 1 confirmed")
 		if (current >= min) && (trend2 < -1) && (trend1 > 0.1) {
 			dobuy = true
 			fmt.Println("Rule 1")
@@ -875,6 +876,10 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
                 if (current >= min) && (trend3 < -0.3) && (trend2 < -0.1) && (trend2 > -0.5) && (trend1 > 0.1) {
                         dobuy = true
                         fmt.Println("Rule 2")
+                }
+                if (current >= min) && (trend2 < 0.7) && (trend2 > -0.7) && (trend1 > 0.1) {
+                        dobuy = true
+                        fmt.Println("Rule 3")
                 }
 		if dobuy {
 			price = limit
