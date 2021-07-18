@@ -20,7 +20,7 @@ package main
 
 import (
 	"os"
-	"os/exec"
+//	"os/exec"
 	"fmt"
 	"io"
 	flag "github.com/spf13/pflag"
@@ -101,6 +101,30 @@ type Order struct {
 	cost float64
 }
 
+var pFlag string
+var iFlag string
+var limitFlag string
+var rpcuserFlag string
+var rpcpasswordFlag string
+var excFlag string
+var assetFlag string
+var startFlag string
+var endFlag string
+
+func init(){
+flag.StringVarP(&pFlag, "pair", "p", "ETH-EUR", "Currency pair")
+flag.StringVarP(&iFlag, "interval", "i", "900", "Interval")
+flag.StringVarP(&limitFlag, "limit" , "l", "1", "Limit")
+flag.StringVarP(&rpcuserFlag, "rpcuser" , "u", "admin", "RPC user")
+flag.StringVarP(&rpcpasswordFlag, "rpcpassword" , "w", "password", "RPC password")
+flag.StringVarP(&excFlag, "exchange" , "e", "bitstamp", "Exchange name")
+flag.StringVarP(&assetFlag, "asset" , "a", "SPOT", "Asset")
+flag.StringVarP(&startFlag, "start" , "s", "", "Start time")
+flag.StringVarP(&endFlag, "end" , "x", "", "End time")
+
+flag.Parse()
+}
+
 func main() {
 // Set location of config 
 	dirname, err := os.UserHomeDir()
@@ -133,7 +157,7 @@ func main() {
                         }
 		}
 
-		argsWithoutProg := os.Args[1:]
+/*		argsWithoutProg := os.Args[1:]
 		fmt.Println(argsWithoutProg)
 		fmt.Println(gctcmd)
 
@@ -142,7 +166,7 @@ func main() {
                 	fmt.Printf("Command finished with error: %v", err)
         	}
 		fmt.Println(string(out))
-                os.Exit(0)
+                os.Exit(0) */
 	}
 	if len(os.Args) == 1 {
 		myUsage()
@@ -211,15 +235,6 @@ func myUsage() {
 }
 
 func getCandles() {
-var pFlag string
-var iFlag string
-var limitFlag string
-var rpcuserFlag string
-var rpcpasswordFlag string
-var excFlag string
-var assetFlag string
-var startFlag string
-var endFlag string
 var data map[string]interface{}
 var candle map[string]interface{}
 var ohlc []interface{}
@@ -232,18 +247,6 @@ var volume string
 var itime int64
 
 var out string
-
-flag.StringVarP(&pFlag, "pair", "p", "ETH-EUR", "Currency pair")
-flag.StringVarP(&iFlag, "interval", "i", "900", "Interval")
-flag.StringVarP(&limitFlag, "limit" , "l", "1", "Limit")
-flag.StringVarP(&rpcuserFlag, "rpcuser" , "u", "admin", "RPC user")
-flag.StringVarP(&rpcpasswordFlag, "rpcpassword" , "w", "password", "RPC password")
-flag.StringVarP(&excFlag, "exchange" , "e", "bitstamp", "Exchange name")
-flag.StringVarP(&assetFlag, "asset" , "a", "SPOT", "Asset")
-flag.StringVarP(&startFlag, "start" , "s", "", "Start time")
-flag.StringVarP(&endFlag, "end" , "x", "", "End time")
-
-flag.Parse()
 
 pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
 
@@ -319,127 +322,48 @@ fmt.Print(out)
 }
 
 func getAccount() {
-var pFlag string
-var iFlag string
-var limitFlag string
-var rpcuserFlag string
-var rpcpasswordFlag string
-var excFlag string
-var assetFlag string
-var startFlag string
-var endFlag string
-/*var data map[string]interface{}
-var candle map[string]interface{}
-var ohlc []interface{}
-var layout string = "2006-01-02 15:04:05 MST"
-var open string
-var close string
-var low string
-var high string
-var volume string
-var itime int64
-
-var out string */
-
-flag.StringVarP(&pFlag, "pair", "p", "ETH-EUR", "Currency pair")
-flag.StringVarP(&iFlag, "interval", "i", "900", "Interval")
-flag.StringVarP(&limitFlag, "limit" , "l", "1", "Limit")
-flag.StringVarP(&rpcuserFlag, "rpcuser" , "u", "admin", "RPC user")
-flag.StringVarP(&rpcpasswordFlag, "rpcpassword" , "w", "password", "RPC password")
-flag.StringVarP(&excFlag, "exchange" , "e", "bitstamp", "Exchange name")
-flag.StringVarP(&assetFlag, "asset" , "a", "SPOT", "Asset")
-flag.StringVarP(&startFlag, "start" , "s", "", "Start time")
-flag.StringVarP(&endFlag, "end" , "x", "", "End time")
-
-flag.Parse()
-
-pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
+var data map[string]interface{}
 
 // Create a Resty Client
 client := resty.New()
 
-timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-
-nonce := uuid.New().String()
-
-var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/balance/"+pFlag+"/"+""+
+for _, v := range pairs {
+	pFlag = strings.ToLower(strings.ReplaceAll(v, "-", ""))
+	currencies := strings.Split(v, "-") 
+	timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
+	nonce := uuid.New().String()
+	var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/balance/"+pFlag+"/"+""+
                       ""+nonce+timest+"v2"
+	hash := hmac.New(sha256.New, []byte(apisecret))
+	io.WriteString(hash, toSign)
+	signature := fmt.Sprintf("%x", hash.Sum(nil))
+	resp, err := client.R().
+      		SetHeader("Accept", "application/json").
+      		SetHeader("X-Auth", "BITSTAMP "+apikey).
+      		SetHeader("X-Auth-Signature", signature).
+      		SetHeader("X-Auth-Nonce", nonce).
+      		SetHeader("X-Auth-Timestamp", timest).
+      		SetHeader("X-Auth-Version", "v2").
+      		Post("https://www.bitstamp.net/api/v2/balance/"+pFlag+"/")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-hash := hmac.New(sha256.New, []byte(apisecret))
-io.WriteString(hash, toSign)
-signature := fmt.Sprintf("%x", hash.Sum(nil))
+	err = json.Unmarshal(resp.Body(), &data)
+	if err != nil { // Handle JSON errors
+        	fmt.Printf("JSON error: %v\n", err)
+        	fmt.Printf("JSON input: %v\n", resp.Body())
+        	return
+	}
 
-resp, err := client.R().
-      SetHeader("Accept", "application/json").
-      SetHeader("X-Auth", "BITSTAMP "+apikey).
-      SetHeader("X-Auth-Signature", signature).
-      SetHeader("X-Auth-Nonce", nonce).
-      SetHeader("X-Auth-Timestamp", timest).
-      SetHeader("X-Auth-Version", "v2").
-      Post("https://www.bitstamp.net/api/v2/balance/"+pFlag+"/")
+	c1 := data[strings.ToLower(currencies[0])+"_balance"].(string)
+        c2 := data[strings.ToLower(currencies[1])+"_balance"].(string)
 
-if err != nil {
-	fmt.Println(err)
-	return
+	fmt.Printf("\"currency\": \"%s\",\n",currencies[0])
+        fmt.Printf("\"total_value\": %s,\n",c1)
+        fmt.Printf("\"currency\": \"%s\",\n",currencies[1])
+        fmt.Printf("\"total_value\": %s,\n",c2)
 }
-
-fmt.Println(resp.String())
-
-/*
-err = json.Unmarshal(resp.Body(), &data)
-if err != nil { // Handle JSON errors 
-	fmt.Printf("JSON error: %v\n", err)
-	fmt.Printf("JSON input: %v\n", resp.Body())
-	return
-}
-
-candle = data["data"].(map[string]interface{})
-pair := candle["pair"].(string)
-ohlc = candle["ohlc"].([]interface{})
-
-pairs := strings.Split(pair, "/")
-
-out = "{\n"
-out += " \"exchange\": \""+exchange_name+"\",\n"
-out += " \"pair\": {\n"
-out += "  \"delimiter\": \"-\",\n"
-out += "  \"base\": \""+pairs[0]+"\",\n"
-out += "  \"quote\": \""+pairs[1]+"\"\n"
-out += " },\n"
-out += " \"interval\": \""+iFlag+"\",\n"
-out += " \"candle\": [\n"
-
-for _, cndl := range ohlc {
-	cn := cndl.(map[string]interface{})
-	if cn != nil {
-		open = cn["open"].(string)
-                close = cn["close"].(string)
-		if cn["volume"] != nil {
-      	        	volume = cn["volume"].(string)
-		} else {
-			volume = "0"
-		}
-               	low = cn["low"].(string)
-       	        high = cn["high"].(string)
-		itime,err = strconv.ParseInt(cn["timestamp"].(string),10,64)
-		t := time.Unix(itime,0)
-	        if err != nil {
-       			fmt.Printf("Time conversion error: %v", err)
- 		}
-		out += "  {\n"
-		out += "   \"time\": \""+t.Format(layout)+"\",\n"
-                out += "   \"low\": "+low+",\n"
-                out += "   \"high\": "+high+",\n"
-                out += "   \"open\": "+open+",\n"
-                out += "   \"close\": "+close+",\n"
-                out += "   \"volume\": "+volume+"\n"
-		out += "  }\n"
-		}
-} 
-
-out += " ]\n"
-out += "}\n"
-
-fmt.Print(out) */
 
 }
