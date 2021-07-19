@@ -1510,16 +1510,28 @@ func processOrders() {
                         	fmt.Printf("JSON input: %v\n",string(out))
                         	continue
                 	}
-			o.exchange = strings.ToLower(order["exchange"].(string))
+			if order["exchange"] != nil {
+				o.exchange = strings.ToLower(order["exchange"].(string))
+			}
                         o.id = order["id"].(string)
-                        o.base_currency = order["base_currency"].(string)
-                        o.quote_currency = order["quote_currency"].(string)
+			if order["base_currency"] != nil {
+                        	o.base_currency = order["base_currency"].(string)
+			}
+			if order["quote_currency"] != nil {
+                        	o.quote_currency = order["quote_currency"].(string)
+			}
                         if order["asset_type"] != nil {
 				o.asset = order["asset_type"].(string)
 			}
-                        o.order_side = order["order_side"].(string) 
-                        o.order_type = order["order_type"].(string)
-                        o.creation_time = order["creation_time"].(float64)
+			if order["order_side"] != nil {
+                        	o.order_side = order["order_side"].(string)
+			} 
+			if order["order_type"] != nil {
+                        	o.order_type = order["order_type"].(string)
+			}
+			if order["creation_time"] != nil {
+                        	o.creation_time = order["creation_time"].(float64)
+			}
 			if order["update_time"] != nil {
 	                        o.update_time = order["update_time"].(float64)
 			}
@@ -1527,7 +1539,9 @@ func processOrders() {
 			if order["price"] != nil {
                         	o.price = order["price"].(float64)
 			}
-                        o.amount = order["amount"].(float64)
+			if order["amount"] != nil {
+                        	o.amount = order["amount"].(float64)
+			}
 			if order["cost"] != nil {
                         	o.cost = order["cost"].(float64)
 			}

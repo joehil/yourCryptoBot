@@ -110,6 +110,7 @@ var excFlag string
 var assetFlag string
 var startFlag string
 var endFlag string
+var oFlag string
 
 func init(){
 flag.StringVarP(&pFlag, "pair", "p", "ETH-EUR", "Currency pair")
@@ -121,6 +122,7 @@ flag.StringVarP(&excFlag, "exchange" , "e", "bitstamp", "Exchange name")
 flag.StringVarP(&assetFlag, "asset" , "a", "SPOT", "Asset")
 flag.StringVarP(&startFlag, "start" , "s", "", "Start time")
 flag.StringVarP(&endFlag, "end" , "x", "", "End time")
+flag.StringVarP(&oFlag, "order_id" , "o", "", "Order ID")
 
 flag.Parse()
 }
@@ -157,6 +159,10 @@ func main() {
                         }
                         if v == "getorders" {
                                 getOrders()
+                                os.Exit(0)
+                        }
+                        if v == "getorder" {
+                                getOrder()
                                 os.Exit(0)
                         }
 		}
@@ -454,3 +460,60 @@ out += "}\n"
  
 fmt.Println(out)
 }
+
+func getOrder() {
+var order map[string]interface{}
+var status string
+var id float64
+var out string
+
+// Create a Resty Client
+client := resty.New()
+
+//currencies := strings.Split(pFlag, "-")
+
+pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
+timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
+nonce := uuid.New().String()
+var query = `id=`+oFlag
+var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/order_status/"+""+
+                    "application/x-www-form-urlencoded"+nonce+timest+"v2"+query
+hash := hmac.New(sha256.New, []byte(apisecret))
+io.WriteString(hash, toSign)
+signature := fmt.Sprintf("%x", hash.Sum(nil))
+resp, err := client.R().
+        SetHeader("Accept", "application/json").
+	SetHeader("Content-Type", "application/x-www-form-urlencoded").
+	SetHeader("X-Auth", "BITSTAMP "+apikey).
+	SetHeader("X-Auth-Signature", signature).
+	SetHeader("X-Auth-Nonce", nonce).
+	SetHeader("X-Auth-Timestamp", timest).
+	SetHeader("X-Auth-Version", "v2").
+        SetBody(query).
+	Post("https://www.bitstamp.net/api/v2/order_status/")
+if err != nil {
+	fmt.Println(err)
+	return
+}
+
+err = json.Unmarshal(resp.Body(), &order)
+if err != nil { // Handle JSON errors
+       	fmt.Printf("JSON error: %v\n", err)
+       	fmt.Printf("JSON input: %v\n", resp.Body())
+       	return
+}
+
+out = "{\n"
+
+if order != nil {
+        id = order["id"].(float64)
+        status = order["status"].(string)
+	out += "   \"id\": \""+fmt.Sprintf("%.0f",id)+"\",\n"
+        out += "   \"status\": \""+strings.ToUpper(status)+"\"\n"
+}
+
+out += "}"
+ 
+fmt.Println(out) 
+}
+
