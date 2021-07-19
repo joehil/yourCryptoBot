@@ -373,10 +373,19 @@ for _, v := range pairs {
 }
 
 func getOrders() {
-//var data map[string]interface{}
+var orders []interface{}
+var tm string
+var id string
+var price string
+var amount string
+var typ string
+var out string
+var tim time.Time
 
 // Create a Resty Client
 client := resty.New()
+
+currencies := strings.Split(pFlag, "-")
 
 pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
@@ -399,12 +408,49 @@ if err != nil {
 	return
 }
 
-/*err = json.Unmarshal(resp.Body(), &data)
+err = json.Unmarshal(resp.Body(), &orders)
 if err != nil { // Handle JSON errors
        	fmt.Printf("JSON error: %v\n", err)
        	fmt.Printf("JSON input: %v\n", resp.Body())
        	return
-} */
+}
 
-fmt.Println(resp.String())
+out = "{\n"
+out += " \"orders\": [\n"
+
+for _, order := range orders {
+        od := order.(map[string]interface{})
+        if od != nil {
+                id = od["id"].(string)
+                tm = od["datetime"].(string)
+		tim, _ = time.Parse("2006-01-02 15:04:05", tm)
+                amount = od["amount"].(string)
+                price = od["price"].(string)
+		typ = od["type"].(string)
+		out += "   {\n"
+                out += "   \"exchange\": \""+exchange_name+"\",\n"
+                out += "   \"id\": \""+id+"\",\n"
+                out += "   \"base_currency\": \""+strings.ToUpper(currencies[0])+"\",\n"
+                out += "   \"quote_currency\": \""+strings.ToUpper(currencies[1])+"\",\n"
+                out += "   \"asset_type\": \"spot\",\n"
+		if typ == "1" {
+                	out += "   \"order_side\": \"SELL\",\n"
+		} else {
+                        out += "   \"order_side\": \"BUY\",\n"
+		}
+                out += "   \"order_type\": \"LIMIT\",\n"
+                out += "   \"creation_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
+                out += "   \"update_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
+                out += "   \"status\": \"NEW\",\n"
+                out += "   \"price\": "+price+",\n"
+                out += "   \"amount\": "+amount+",\n"
+                out += "   \"open_volume\": "+amount+"\n"
+                out += "   }\n"
+	}
+}
+
+out += " ]\n"
+out += "}\n"
+ 
+fmt.Println(out)
 }
