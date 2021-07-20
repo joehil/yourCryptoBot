@@ -111,6 +111,10 @@ var assetFlag string
 var startFlag string
 var endFlag string
 var oFlag string
+var sFlag string
+var tFlag string
+var aFlag string
+var prFlag string
 
 func init(){
 flag.StringVarP(&pFlag, "pair", "p", "ETH-EUR", "Currency pair")
@@ -123,6 +127,10 @@ flag.StringVarP(&assetFlag, "asset" , "a", "SPOT", "Asset")
 flag.StringVarP(&startFlag, "start" , "s", "", "Start time")
 flag.StringVarP(&endFlag, "end" , "x", "", "End time")
 flag.StringVarP(&oFlag, "order_id" , "o", "", "Order ID")
+flag.StringVarP(&sFlag, "side" , "", "", "Order side")
+flag.StringVarP(&tFlag, "type" , "", "", "Order type")
+flag.StringVarP(&aFlag, "amount" , "", "", "Order amount")
+flag.StringVarP(&prFlag, "price" , "", "", "Order price")
 
 flag.Parse()
 }
@@ -163,6 +171,14 @@ func main() {
                         }
                         if v == "getorder" {
                                 getOrder()
+                                os.Exit(0)
+                        }
+                        if v == "submitorder" {
+                                submitOrder()
+                                os.Exit(0)
+                        }
+                        if v == "cancelorder" {
+                                cancelOrder()
                                 os.Exit(0)
                         }
 		}
@@ -518,3 +534,95 @@ out += "}"
 fmt.Println(out) 
 }
 
+func submitOrder(){
+// Create a Resty Client
+client := resty.New()
+
+pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
+sFlag = strings.ToLower(sFlag)
+timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
+nonce := uuid.New().String()
+
+var query = `amount=`+aFlag+`&price=`+prFlag
+
+var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/"+sFlag+"/"+pFlag+"/"+""+
+                    "application/x-www-form-urlencoded"+nonce+timest+"v2"+query
+hash := hmac.New(sha256.New, []byte(apisecret))
+io.WriteString(hash, toSign)
+signature := fmt.Sprintf("%x", hash.Sum(nil))
+resp, err := client.R().
+        SetHeader("Accept", "application/json").
+	SetHeader("Content-Type", "application/x-www-form-urlencoded").
+	SetHeader("X-Auth", "BITSTAMP "+apikey).
+	SetHeader("X-Auth-Signature", signature).
+	SetHeader("X-Auth-Nonce", nonce).
+	SetHeader("X-Auth-Timestamp", timest).
+	SetHeader("X-Auth-Version", "v2").
+        SetBody(query).
+	Post("https://www.bitstamp.net/api/v2/"+sFlag+"/"+pFlag+"/")
+if err != nil {
+	fmt.Println(err)
+	return
+}
+
+fmt.Println(resp.String())
+}
+
+func cancelOrder(){
+var order map[string]interface{}
+var id float64
+var out string
+
+// Create a Resty Client
+client := resty.New()
+
+//currencies := strings.Split(pFlag, "-")
+
+pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
+timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
+nonce := uuid.New().String()
+var query = `id=`+oFlag
+var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/cancel_order/"+""+
+                    "application/x-www-form-urlencoded"+nonce+timest+"v2"+query
+hash := hmac.New(sha256.New, []byte(apisecret))
+io.WriteString(hash, toSign)
+signature := fmt.Sprintf("%x", hash.Sum(nil))
+resp, err := client.R().
+        SetHeader("Accept", "application/json").
+	SetHeader("Content-Type", "application/x-www-form-urlencoded").
+	SetHeader("X-Auth", "BITSTAMP "+apikey).
+	SetHeader("X-Auth-Signature", signature).
+	SetHeader("X-Auth-Nonce", nonce).
+	SetHeader("X-Auth-Timestamp", timest).
+	SetHeader("X-Auth-Version", "v2").
+        SetBody(query).
+	Post("https://www.bitstamp.net/api/v2/cancel_order/")
+if err != nil {
+	fmt.Println(err)
+	return
+}
+
+err = json.Unmarshal(resp.Body(), &order)
+if err != nil { // Handle JSON errors
+       	fmt.Printf("JSON error: %v\n", err)
+       	fmt.Printf("JSON input: %v\n", resp.Body())
+       	return
+}
+
+out = "{\n"
+
+if order != nil {
+	if order["id"] != nil {
+        	id = order["id"].(float64)
+        	out += "   \"id\": \""+fmt.Sprintf("%.0f",id)+"\",\n"
+        	out += "   \"status\": \"success\",\n"
+	} else {
+                out += "   \"status\": \"failed\",\n"
+	}
+        out += "   \"exchange\": \""+exchange_name+"\"\n"
+}
+
+out += "}"
+ 
+fmt.Println(out) 
+}
