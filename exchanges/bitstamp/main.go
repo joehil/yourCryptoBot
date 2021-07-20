@@ -508,6 +508,7 @@ out = "{\n"
 if order != nil {
         id = order["id"].(float64)
         status = order["status"].(string)
+        out += "   \"exchange\": \""+exchange_name+"\",\n"
 	out += "   \"id\": \""+fmt.Sprintf("%.0f",id)+"\",\n"
         out += "   \"status\": \""+strings.ToUpper(status)+"\"\n"
 }

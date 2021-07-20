@@ -655,7 +655,7 @@ func deleteOrders() {
 
         sqlStatement := `
         delete from yourorder
-	where status = 'CANCELLED'
+	where status in ('CANCELLED','CANCELED')
 	AND LOWER(exchange) = $1;`
         _, err = db.Exec(sqlStatement,exchange_name)
         if err != nil {
@@ -1483,8 +1483,8 @@ func processOrders() {
         defer db.Close()
 
         sqlStatement := `
-        select pair, id  from yourorder
-        where status = 'NEW'
+        select id, pair, asset, price, amount, side, timestamp, order_type from yourorder
+        where status in ('NEW','OPEN')
 	AND LOWER(exchange) = $1
         order by "timestamp";`
 
@@ -1495,15 +1495,19 @@ func processOrders() {
         defer rows.Close()
 
         for rows.Next(){
-                var id string
 		var pair string
+		var crtime time.Time
         	var order map[string]interface{}
 		var o Order
-                if err := rows.Scan(&pair, &id); err != nil {
+                if err := rows.Scan(&o.id, &pair, &o.asset, &o.price, &o.amount, &o.order_side, &crtime, &o.order_type); err != nil {
                         fmt.Println(err)
                 } else {
-			fmt.Printf("Pair: %s, OrderID: %s\n",pair, id)
-			out :=getOrder(pair, id)
+			fmt.Printf("Pair: %s, OrderID: %s\n",pair, o.id)
+			out :=getOrder(pair, o.id)
+			currencies := strings.Split(pair, "-")
+			o.base_currency = currencies[0]
+                        o.quote_currency = currencies[1]
+			o.update_time = float64(crtime.Unix())
                 	err := json.Unmarshal(out, &order)
                 	if err != nil { // Handle JSON errors
                         	fmt.Printf("JSON error: %v\n", err)
