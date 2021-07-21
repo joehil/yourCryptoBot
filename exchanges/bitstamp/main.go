@@ -115,6 +115,7 @@ var sFlag string
 var tFlag string
 var aFlag string
 var prFlag string
+var cFlag string
 
 func init(){
 flag.StringVarP(&pFlag, "pair", "p", "ETH-EUR", "Currency pair")
@@ -131,6 +132,7 @@ flag.StringVarP(&sFlag, "side" , "", "", "Order side")
 flag.StringVarP(&tFlag, "type" , "", "", "Order type")
 flag.StringVarP(&aFlag, "amount" , "", "", "Order amount")
 flag.StringVarP(&prFlag, "price" , "", "", "Order price")
+flag.StringVarP(&cFlag, "client_id" , "c", "", "Order client ID")
 
 flag.Parse()
 }

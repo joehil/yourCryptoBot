@@ -745,8 +745,15 @@ func submitOrder(pair string,side string,otype string,amount float64,price float
                 	fmt.Printf("JSON input: %v\n",string(out))
                 } else {
 //                	status = strings.ToLower(resp["exchange"].(string))
-                	id := resp["order_id"].(string)
-  	                storeOrder(exchange_name,id,pair,"SPOT",side,otype,float64(time.Now().Unix()),"NEW",price,amount)
+			if resp["order_id"] != nil {
+                		id := resp["order_id"].(string)
+  	                	storeOrder(exchange_name,id,pair,"SPOT",side,otype,float64(time.Now().Unix()),"NEW",price,amount)
+			} else if resp["id"] != nil {
+                                id := resp["id"].(string)
+                                storeOrder(exchange_name,id,pair,"SPOT",side,otype,float64(time.Now().Unix()),"NEW",price,amount)
+                        } else {
+				fmt.Println(string(out))
+			}
 		}
 	}
         return out
@@ -1553,11 +1560,11 @@ func processOrders() {
 
 			storeOrder(o.exchange,o.id,o.base_currency+"-"+o.quote_currency,o.asset,o.order_side,o.order_type,o.update_time,o.status,o.price,o.amount)
 			
-			if (o.status == "FILLED" || o.status == "CLOSED") && o.order_side == "BUY" {
+			if (o.status == "FILLED" || o.status == "CLOSED" || o.status == "FINISHED") && o.order_side == "BUY" {
 				insertPositions(o.exchange,o.base_currency+"-"+o.quote_currency,o.order_side,time.Unix(int64(o.update_time), 0),o.price,o.amount)
                         	submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" bought")
 			}
-                        if (o.status == "FILLED" || o.status == "CLOSED") && o.order_side == "SELL" {
+                        if (o.status == "FILLED" || o.status == "CLOSED" || o.status == "FINISHED") && o.order_side == "SELL" {
 				deletePositions(o.exchange, o.base_currency+"-"+o.quote_currency)
                                 submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" sold")
                         }
@@ -1584,7 +1591,7 @@ func buyOrders() {
                 fmt.Printf("%d, Value: %v\n", i, v )
                 out := getOrders(v)
 
-                if len(string(out)) < 10 {
+                if len(string(out)) < 25 {
                         fmt.Println("No open order")
                         newprice,newamount,err := getBuyPriceNew(v)
                         if err != nil {
@@ -1598,20 +1605,6 @@ func buyOrders() {
                         }
                         continue
                 }
-
-
- /*               if len(string(out)) < 10 {
-                        fmt.Println("No open order")
-                        newprice,err := getBuyPrice(v)
-                        if err != nil {
-	                        fmt.Printf("Price error: %v\n", err)
-        	                continue
-                        }
-                        fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
-			out := submitOrder(v,"BUY","LIMIT",float64(invest_amount)/newprice,newprice,"automatic-new")
-			fmt.Println(string(out))
-			continue
-                } */
 
                 err := json.Unmarshal(out, &pack)
                 if err != nil { // Handle JSON errors
@@ -1638,15 +1631,6 @@ func buyOrders() {
                 		}
 				status := resp["status"].(string)
 				if status == "success" {
-/*					newprice,err := getBuyPrice(v)
-	                                if err != nil {
-	                                        fmt.Printf("Price error: %v\n", err)
-                                        	continue
-	                                }
-		                        fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
-                		        out := submitOrder(v,"BUY","LIMIT",float64(invest_amount)/newprice,newprice,"automatic-update")
-                        		fmt.Println(string(out)) */
-
 		                        newprice,newamount,err := getBuyPriceNew(v)
                 		        if err != nil {
                                 		fmt.Printf("Price error: %v\n", err)
@@ -1682,7 +1666,7 @@ func sellOrders() {
                 fmt.Printf("%d, Value: %v\n", i, v )
                 out := getOrders(v)
 
-                if len(string(out)) < 10 {
+                if len(string(out)) < 25 {
                         fmt.Println("No open order")
                         newprice,newamount,err := getSellPrice(v)
                         if err != nil {
