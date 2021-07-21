@@ -142,6 +142,8 @@ func main() {
                         writeCharts()
 			buyOrders()
 			sellOrders()
+                        deactivatePositions()
+			activatePositions()
 			os.Exit(0)
         	}
                 if a1 == "sell" {
@@ -225,6 +227,11 @@ func main() {
                 }
                 if a1 == "chart" {
                         writeCharts()
+                        os.Exit(0)
+                }
+                if a1 == "positions" {
+                        deactivatePositions()
+                        activatePositions()
                         os.Exit(0)
                 }
 		fmt.Println("parameter invalid")
@@ -1916,4 +1923,61 @@ func forceOrder(pair string, price string, passcode string) {
         } else {
                 println("Invalid passcode!")
         }
+}
+
+func activatePosition(pair string) {
+        fmt.Printf("Activate position: %s\n", pair)
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+	update yourposition
+	set active = true
+	where rid =
+	(select rid from yourposition p
+	where LOWER(exchange) = $1
+	and pair = $2
+	and pair not in 
+	(select pair from yourposition x
+	where active = true)
+	and rate < 
+	(select limitsell from yourlimits l
+	where LOWER(l.exchange) = $1
+	and l.pair = $2)
+	order by rate desc
+	limit 1);`
+        _, err = db.Exec(sqlStatement,exchange_name,pair)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+}
+
+func activatePositions() {
+        for _, v := range tradepairs {
+                activatePosition(v)
+        }
+}
+
+func deactivatePositions() {
+        fmt.Println("Dectivate position")
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        update yourposition
+        set active = false
+        where LOWER(exchange) = $1;`
+        _, err = db.Exec(sqlStatement,exchange_name)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+
 }
