@@ -882,6 +882,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
         (select pair from yourposition p
         where p.pair = $1
 	AND active = true
+	AND notrade = false
         AND LOWER(p.exchange) = $2);`
 
         err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&min,&potwin,&trend1,&trend2,&trend3)
@@ -947,7 +948,8 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
 	AND LOWER(l.exchange) = $2
         and p.pair = $1
 	AND LOWER(p.exchange) = $2
-	AND p.active = true;`
+	AND p.active = true
+	AND notrade = false;`
 
         err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&max,&trend1,&trend2,&trend3,&rate,&amnt)
         if err != nil {
@@ -1944,6 +1946,7 @@ func activatePosition(pair string) {
 	and pair not in 
 	(select pair from yourposition x
 	where active = true)
+	and notrade = false
 	and rate < 
 	(select limitsell from yourlimits l
 	where LOWER(l.exchange) = $1
@@ -1974,7 +1977,8 @@ func deactivatePositions() {
         sqlStatement := `
         update yourposition
         set active = false
-        where LOWER(exchange) = $1;`
+        where LOWER(exchange) = $1
+	and notrade = false;`
         _, err = db.Exec(sqlStatement,exchange_name)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
