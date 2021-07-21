@@ -344,13 +344,24 @@ func insertCandles(exchange string, pair string, interval string, timest time.Ti
 
         defer db.Close()
 
-	sqlStatement := `
-	INSERT INTO yourcandle (
-	exchange, pair, interval, timestamp, open, high, low, close, volume, asset)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
-	_, err = db.Exec(sqlStatement, exchange, pair, interval, timest, open, high, low, close, volume, asset)
-	if err != nil {
-  		fmt.Printf("SQL error: %v\n",err)
+        sqlStatement := `
+        UPDATE yourcandle
+        set open = $1, high = $2, low = $3, close = $4, volume = $5
+        where exchange = $6 and pair = $7 and asset = $8 and interval = $9 and timestamp = $10`
+        info, err := db.Exec(sqlStatement, open, high, low, close, volume, exchange, pair, asset, interval, timest)
+        count, err := info.RowsAffected()
+        if err != nil {
+                panic(err)
+        }
+        if count == 0 {
+		sqlStatement := `
+		INSERT INTO yourcandle (
+		exchange, pair, interval, timestamp, open, high, low, close, volume, asset)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+		_, err = db.Exec(sqlStatement, exchange, pair, interval, timest, open, high, low, close, volume, asset)
+		if err != nil {
+  			fmt.Printf("SQL error: %v\n",err)
+		}
 	}
 }
 
@@ -940,7 +951,11 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
 
 	fmt.Printf("C: %f, L: %f, M: %f, R: %f, T1: %f, T2: %f, T3: %f\n",current,limit,max,winrate,trend1,trend2,trend3)
 
-        if current > limit && current > winrate {
+	if winrate > limit {
+		limit = winrate
+	}
+
+	if current > limit {
                 var dosell bool = false
                 if trend1 < 0.1 {
                         dosell = true
@@ -950,21 +965,10 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
                         amount = amnt
                         price = limit
                         fmt.Printf("Price: %f\n",limit)
-                }
+                } else {
+                        fmt.Println("Wait due to trend")
+		}
         }
-
-
-
-
-	if current > limit && current > winrate {
-		if ((trend2 > 0.8) && (trend1 > 0.1 )) || (current > max) {
-			fmt.Println("Wait due to trend")
-		} else {
-                	amount = amnt
-			price = limit
-                	fmt.Printf("Price: %f\n",limit)
-        	}
-	}
 
 	fmt.Printf("A: %f, P: %f\n",amount,price)
 
