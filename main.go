@@ -879,11 +879,19 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
         where l.pair = $1
 	AND LOWER(l.exchange) = $2
         and l.pair not in
-        (select pair from yourposition p
-        where p.pair = $1
-	AND active = true
-	AND notrade = false
-        AND LOWER(p.exchange) = $2);`
+	(select distinct p.pair from yourposition p, yourlimits x
+	where p.pair = $1
+	AND LOWER(p.exchange) = $2
+	and LOWER(x.exchange) = LOWER(p.exchange)
+	and x.pair = p.pair
+	and p.notrade = false
+	AND 
+	(p.active = true
+	or 
+	p.rate > (x.current * 0.98) and 
+	p.rate < (x.current * 1.02)
+	)
+        );`
 
         err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&min,&potwin,&trend1,&trend2,&trend3)
         if err != nil {
