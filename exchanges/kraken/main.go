@@ -191,8 +191,8 @@ func main() {
 		}
 
 		argsWithoutProg := os.Args[1:]
-		fmt.Println(argsWithoutProg)
-		fmt.Println(gctcmd)
+//		fmt.Println(argsWithoutProg)
+//		fmt.Println(gctcmd)
 		out, err := exec.Command(bkpcmd, argsWithoutProg...).Output()
         	if err != nil {
                 	fmt.Printf("Command finished with error: %v", err)
