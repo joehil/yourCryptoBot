@@ -20,14 +20,14 @@ package main
 
 import (
 	"os"
-//	"os/exec"
+	"os/exec"
 	"fmt"
 	"io"
 	flag "github.com/spf13/pflag"
 //	"bufio"
 	"time"
 	"strings"
-  	"strconv"
+//  	"strconv"
 	"crypto/hmac"
 	"crypto/sha256"
 /*	"syscall"
@@ -50,6 +50,7 @@ var pairs []string
 var tradepairs []string
 
 var gctcmd string
+var bkpcmd string
 
 var gctuser string
 var gctpassword string
@@ -149,7 +150,7 @@ func main() {
 
 // Get commandline args
 	if len(os.Args) > 1 {
-		exc := "bitstamp"
+		exc := "kraken"
 		viper.SetConfigName(exc) // name of config file (name of exchange)
 // Read config
 		read_config()
@@ -159,7 +160,12 @@ func main() {
 		}
 
 		for _, v := range os.Args {
-		    	if v == "gethistoriccandlesextended" {
+                        if v == "jhtest" {
+                                getCandles()
+                                os.Exit(0)
+                        }
+
+/*		    	if v == "gethistoriccandlesextended" {
 				getCandles()
 				os.Exit(0)
     			}
@@ -182,18 +188,18 @@ func main() {
                         if v == "cancelorder" {
                                 cancelOrder()
                                 os.Exit(0)
-                        }
+                        } */
 		}
 
-/*		argsWithoutProg := os.Args[1:]
+		argsWithoutProg := os.Args[1:]
 		fmt.Println(argsWithoutProg)
 		fmt.Println(gctcmd)
-		out, err := exec.Command(gctcmd, argsWithoutProg...).Output()
+		out, err := exec.Command(bkpcmd, argsWithoutProg...).Output()
         	if err != nil {
                 	fmt.Printf("Command finished with error: %v", err)
         	}
 		fmt.Println(string(out))
-                os.Exit(0) */
+                os.Exit(0) 
 	}
 	if len(os.Args) == 1 {
 		myUsage()
@@ -214,6 +220,7 @@ func read_config() {
         exchange_name = viper.GetString("exchange_name")
 
 	gctcmd = viper.GetString("gctcmd")
+        bkpcmd = viper.GetString("bkpcmd")
 
 	gctuser = viper.GetString("gctuser")
         gctpassword = viper.GetString("gctpassword")
@@ -263,27 +270,34 @@ func myUsage() {
 
 func getCandles() {
 var data map[string]interface{}
-var candle map[string]interface{}
+var curr map[string]interface{}
+/*var candle map[string]interface{}
 var ohlc []interface{}
 var layout string = "2006-01-02 15:04:05 MST"
 var open string
 var close string
 var low string
 var high string
-var volume string
-var itime int64
+var volume string */
+//var itime int64
+var tm int64 = time.Now().Unix()
+var pair
 
-var out string
+//var out string
 
-pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
+currencies := strings.Split(pFlag, "-")
+
+pair = "X"+currencies[0]+"Z"+currencies[1]
+
+pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
 
 // Create a Resty Client
 client := resty.New()
 
 resp, err := client.R().
-      SetQueryString("limit="+limitFlag+"&step="+iFlag).
+      SetQueryString("pair="+pFlag+"&interval=15&since="+fmt.Sprintf("%d",tm)).
       SetHeader("Accept", "application/json").
-      Get("https://www.bitstamp.net/api/v2/ohlc/"+pFlag+"/")
+      Get("https://api.kraken.com/0/public/OHLC")
 
 if err != nil {
 	fmt.Println(err)
@@ -297,8 +311,10 @@ if err != nil { // Handle JSON errors
 	return
 }
 
-candle = data["data"].(map[string]interface{})
-pair := candle["pair"].(string)
+fmt.Println(resp.String())
+
+candle = data["result"].(map[string]interface{})
+curr := candle["pair"].(string)
 ohlc = candle["ohlc"].([]interface{})
 
 pairs := strings.Split(pair, "/")
@@ -345,7 +361,7 @@ out += " ]\n"
 out += "}\n"
 
 fmt.Print(out)
-
+*/
 }
 
 func getAccount() {
