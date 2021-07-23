@@ -111,3 +111,13 @@ CREATE TABLE public.yourposition (
 );
 
 
+CREATE UNIQUE INDEX youraccount_exchange_idx ON public.youraccount USING btree (exchange, currency);
+
+CREATE UNIQUE INDEX yourcandle_exchange_name_idx ON public.yourcandle USING btree (exchange, pair, "timestamp", asset, "interval");
+
+CREATE UNIQUE INDEX yourlimits_exchange_idx ON public.yourlimits USING btree (exchange, pair);
+
+CREATE UNIQUE INDEX yourorder_exchange_idx ON public.yourorder USING btree (exchange, id);
+
+CREATE UNIQUE INDEX yourparameter_key_idx ON public.yourparameter USING btree (key);
+
