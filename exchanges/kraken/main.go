@@ -164,12 +164,11 @@ func main() {
                                 getCandles()
                                 os.Exit(0)
                         }
-
-/*		    	if v == "gethistoriccandlesextended" {
+		    	if v == "gethistoriccandlesextended" {
 				getCandles()
 				os.Exit(0)
     			}
-                        if v == "getaccountinfo" {
+/*                        if v == "getaccountinfo" {
                                 getAccount()
                                 os.Exit(0)
                         }
@@ -270,24 +269,18 @@ func myUsage() {
 
 func getCandles() {
 var data map[string]interface{}
-var curr map[string]interface{}
-/*var candle map[string]interface{}
-var ohlc []interface{}
+var curr []interface{}
+var candle map[string]interface{}
 var layout string = "2006-01-02 15:04:05 MST"
 var open string
 var close string
 var low string
 var high string
-var volume string */
-//var itime int64
+var volume string 
 var tm int64 = time.Now().Unix()
-var pair
+var pair string = strings.ToUpper(pFlag)
 
-//var out string
-
-currencies := strings.Split(pFlag, "-")
-
-pair = "X"+currencies[0]+"Z"+currencies[1]
+var out string
 
 pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
 
@@ -311,13 +304,14 @@ if err != nil { // Handle JSON errors
 	return
 }
 
-fmt.Println(resp.String())
+if pFlag == "ETHEUR" {
+        pFlag ="XETHZEUR"
+}
 
 candle = data["result"].(map[string]interface{})
-curr := candle["pair"].(string)
-ohlc = candle["ohlc"].([]interface{})
+curr = candle[pFlag].([]interface{})
 
-pairs := strings.Split(pair, "/")
+pairs := strings.Split(pair, "-")
 
 out = "{\n"
 out += " \"exchange\": \""+exchange_name+"\",\n"
@@ -329,23 +323,16 @@ out += " },\n"
 out += " \"interval\": \""+iFlag+"\",\n"
 out += " \"candle\": [\n"
 
-for _, cndl := range ohlc {
-	cn := cndl.(map[string]interface{})
+for _, cndl := range curr {
+	cn := cndl.([]interface{})
 	if cn != nil {
-		open = cn["open"].(string)
-                close = cn["close"].(string)
-		if cn["volume"] != nil {
-      	        	volume = cn["volume"].(string)
-		} else {
-			volume = "0"
-		}
-               	low = cn["low"].(string)
-       	        high = cn["high"].(string)
-		itime,err = strconv.ParseInt(cn["timestamp"].(string),10,64)
-		t := time.Unix(itime,0)
-	        if err != nil {
-       			fmt.Printf("Time conversion error: %v", err)
- 		}
+		tim := cn[0].(float64)
+                open = cn[1].(string)
+      	        high = cn[2].(string)
+               	low = cn[3].(string)
+       	        close = cn[4].(string)
+                volume = cn[6].(string)
+		t := time.Unix(int64(tim),0)
 		out += "  {\n"
 		out += "   \"time\": \""+t.Format(layout)+"\",\n"
                 out += "   \"low\": "+low+",\n"
@@ -354,14 +341,14 @@ for _, cndl := range ohlc {
                 out += "   \"close\": "+close+",\n"
                 out += "   \"volume\": "+volume+"\n"
 		out += "  }\n"
-		}
+		} 
 } 
 
 out += " ]\n"
 out += "}\n"
 
 fmt.Print(out)
-*/
+
 }
 
 func getAccount() {
