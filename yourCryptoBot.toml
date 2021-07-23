@@ -1,23 +1,73 @@
 # do a trace (get more output to log), true or false
 do_trace = true
 
-# file that you write your log to
-own_log = "/var/log/yourCryptoBot.log"
+# sleep before candles are fetched
+sleepbeforerun = 0
 
 # location of gctcli command
-gctcmd = "/home/pi/git/gocryptotrader/cmd/gctcli/gctcli"
-gctuser = "admin"
-gctpassword = "Password"
+gctcmd = "<path to exchange interface>"
 
-# list of exchanges
-exchanges = [
-  "binance"
-]
+gctuser = "<user>"
+gctpassword = "<password>"
+
+pguser = "<user>"
+pgpassword = "<password>"
+pgdb = "<database>"
+
+tbtoken = "<telegram token>"
+
+key_issuer = "<issuer>"
+key_account = "<account>"
+key_secret = "<secret>"
+
+# name of exchange
+exchange_name = "kraken"
 
 # list of pairs
 pairs = [
-  "BNB-EUR",
-  "XLM-EUR",
-  "GRT-EUR",
-  "WRX-EUR"
+  "ADA-EUR",
+  "ETH-EUR",
+  "DOT-EUR",
+  "TRX-EUR",
+  "XRP-EUR",
+  "WAVES-EUR",
+  "DASH-EUR",
+  "SNX-EUR"
 ]
+
+#list of pairs to trade
+tradepairs = [
+  "ADA-EUR",
+  "ETH-EUR",
+  "DOT-EUR",
+  "TRX-EUR",
+  "XRP-EUR"
+]
+
+#amount to invest
+invest_amount = 100
+
+#percent of potential win
+limit_depth = 70
+
+#mininum win in %
+minwin = 3
+
+#comma amount
+[amountcomma]
+ADA-EUR = "4"
+DOT-EUR = "3"
+XRP-EUR = "2"
+ETH-EUR = "5"
+GRT-EUR = "2"
+TRX-EUR = "4"
+
+#price amount
+[pricecomma]
+ADA-EUR = "4"
+DOT-EUR = "3"
+XRP-EUR = "4"
+ETH-EUR = "2"
+GRT-EUR = "4"
+TRX-EUR = "4"
+
