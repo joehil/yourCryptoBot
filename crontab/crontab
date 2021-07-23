@@ -1,0 +1,4 @@
+# m h  dom mon dow   command
+00,15,30,45 * * * * /home/pi/git/yourCryptoBot/yourCryptoBot binance cron >> /home/pi/.yourCryptoBot/logs/binance.log
+00,15,30,45 * * * * /home/pi/git/yourCryptoBot/yourCryptoBot kraken cron >> /home/pi/.yourCryptoBot/logs/kraken.log
+00,15,30,45 * * * * /home/pi/git/yourCryptoBot/yourCryptoBot bitstamp cron >> /home/pi/.yourCryptoBot/logs/bitstamp.log
