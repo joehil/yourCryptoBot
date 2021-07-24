@@ -24,12 +24,14 @@ import (
 	"fmt"
 	"io"
 	flag "github.com/spf13/pflag"
-//	"bufio"
 	"time"
 	"strings"
 //  	"strconv"
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/base64"
+	"net/url"
 /*	"syscall"
 	"bytes"
 	"math"
@@ -117,6 +119,7 @@ var tFlag string
 var aFlag string
 var prFlag string
 var cFlag string
+var otpFlag string
 
 func init(){
 flag.StringVarP(&pFlag, "pair", "p", "ETH-EUR", "Currency pair")
@@ -134,6 +137,7 @@ flag.StringVarP(&tFlag, "type" , "", "", "Order type")
 flag.StringVarP(&aFlag, "amount" , "", "", "Order amount")
 flag.StringVarP(&prFlag, "price" , "", "", "Order price")
 flag.StringVarP(&cFlag, "client_id" , "c", "", "Order client ID")
+flag.StringVarP(&otpFlag, "otp" , "", "", "OTP Value")
 
 flag.Parse()
 }
@@ -161,18 +165,18 @@ func main() {
 
 		for _, v := range os.Args {
                         if v == "jhtest" {
-                                getCandles()
+                                getAccount()
                                 os.Exit(0)
                         }
 		    	if v == "gethistoriccandlesextended" {
 				getCandles()
 				os.Exit(0)
     			}
-/*                        if v == "getaccountinfo" {
+                        if v == "getaccountinfo" {
                                 getAccount()
                                 os.Exit(0)
                         }
-                        if v == "getorders" {
+/*                        if v == "getorders" {
                                 getOrders()
                                 os.Exit(0)
                         }
@@ -191,8 +195,6 @@ func main() {
 		}
 
 		argsWithoutProg := os.Args[1:]
-//		fmt.Println(argsWithoutProg)
-//		fmt.Println(gctcmd)
 		out, err := exec.Command(bkpcmd, argsWithoutProg...).Output()
         	if err != nil {
                 	fmt.Printf("Command finished with error: %v", err)
@@ -263,6 +265,29 @@ func read_config() {
 	}
 }
 
+func getKrakenSignature(url_path string, values url.Values, secret []byte) string {
+
+  sha := sha256.New()
+  sha.Write([]byte(values.Get("nonce") + values.Encode()))
+  shasum := sha.Sum(nil)
+
+  mac := hmac.New(sha512.New, secret)
+  mac.Write(append([]byte(url_path), shasum...))
+  macsum := mac.Sum(nil)
+  return base64.StdEncoding.EncodeToString(macsum)
+}
+
+func convCurr(curr string) string {
+var c string = curr
+if curr == "ETHEUR" {
+        c ="XETHZEUR"
+}
+if curr == "XRPEUR" {
+        c ="XXRPZEUR"
+}
+return c
+}
+
 func myUsage() {
 
 }
@@ -277,7 +302,7 @@ var close string
 var low string
 var high string
 var volume string 
-var tm int64 = time.Now().Unix()
+var tm int64 = time.Now().Unix() - 900
 var pair string = strings.ToUpper(pFlag)
 
 var out string
@@ -297,6 +322,8 @@ if err != nil {
 	return
 }
 
+//fmt.Println(resp.String())
+
 err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors 
 	fmt.Printf("JSON error: %v\n", err)
@@ -304,9 +331,7 @@ if err != nil { // Handle JSON errors
 	return
 }
 
-if pFlag == "ETHEUR" {
-        pFlag ="XETHZEUR"
-}
+pFlag = convCurr(pFlag)
 
 candle = data["result"].(map[string]interface{})
 curr = candle[pFlag].([]interface{})
@@ -353,47 +378,47 @@ fmt.Print(out)
 
 func getAccount() {
 var data map[string]interface{}
+var accounts map[string]interface{}
 
 // Create a Resty Client
 client := resty.New()
 
-for _, v := range pairs {
-	pFlag = strings.ToLower(strings.ReplaceAll(v, "-", ""))
-	currencies := strings.Split(v, "-") 
-	timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-	nonce := uuid.New().String()
-	var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/balance/"+pFlag+"/"+""+
-                      ""+nonce+timest+"v2"
-	hash := hmac.New(sha256.New, []byte(apisecret))
-	io.WriteString(hash, toSign)
-	signature := fmt.Sprintf("%x", hash.Sum(nil))
-	resp, err := client.R().
-      		SetHeader("Accept", "application/json").
-      		SetHeader("X-Auth", "BITSTAMP "+apikey).
-      		SetHeader("X-Auth-Signature", signature).
-      		SetHeader("X-Auth-Nonce", nonce).
-      		SetHeader("X-Auth-Timestamp", timest).
-      		SetHeader("X-Auth-Version", "v2").
-      		Post("https://www.bitstamp.net/api/v2/balance/"+pFlag+"/")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
-	err = json.Unmarshal(resp.Body(), &data)
-	if err != nil { // Handle JSON errors
-        	fmt.Printf("JSON error: %v\n", err)
-        	fmt.Printf("JSON input: %v\n", resp.Body())
-        	return
-	}
+payload := url.Values{}
+payload.Add("nonce",timest)
 
-	c1 := data[strings.ToLower(currencies[0])+"_balance"].(string)
-        c2 := data[strings.ToLower(currencies[1])+"_balance"].(string)
+b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
 
-	fmt.Printf("\"currency\": \"%s\",\n",currencies[0])
-        fmt.Printf("\"total_value\": %s,\n",c1)
-        fmt.Printf("\"currency\": \"%s\",\n",currencies[1])
-        fmt.Printf("\"total_value\": %s,\n",c2)
+signature := getKrakenSignature("/0/private/Balance", payload, b64DecodedSecret)
+
+resp, err := client.R().
+        SetBody(payload.Encode()).
+	SetHeader("Accept", "application/json").
+	SetHeader("API-Key", apikey).
+	SetHeader("API-Sign", signature).
+        SetHeader("User-Agent", "yourCryptoBot").
+	SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
+	Post("https://api.kraken.com/0/private/Balance")
+if err != nil {
+	fmt.Println(err)
+	return
+}
+
+//fmt.Println(resp.String())
+
+err = json.Unmarshal(resp.Body(), &data)
+if err != nil { // Handle JSON errors
+        fmt.Printf("JSON error: %v\n", err)
+        fmt.Printf("JSON input: %v\n", resp.Body())
+        return
+}
+
+accounts = data["result"].(map[string]interface{})
+
+for key, account := range accounts {
+	fmt.Printf("\"currency\": \"%s\",\n",key)
+        fmt.Printf("\"total_value\": %s,\n",account)
 }
 
 }
@@ -486,6 +511,7 @@ var order map[string]interface{}
 var status string
 var id float64
 var out string
+var query string
 
 // Create a Resty Client
 client := resty.New()
@@ -495,7 +521,6 @@ client := resty.New()
 pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 nonce := uuid.New().String()
-var query = `id=`+oFlag
 var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/order_status/"+""+
                     "application/x-www-form-urlencoded"+nonce+timest+"v2"+query
 hash := hmac.New(sha256.New, []byte(apisecret))
