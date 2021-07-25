@@ -745,7 +745,7 @@ func submitOrder(pair string,side string,otype string,amount float64,price float
 	apot, _ := strconv.ParseInt(amountcomma[strings.ToLower(pair)], 10, 32)
 	fac := math.Pow(float64(10),float64(apot))
 	amount = float64(math.Floor(amount*fac)/fac)
-	
+
 	stramount = fmt.Sprintf(aformat,amount)
 	strprice = fmt.Sprintf(pformat,price)
 
@@ -770,7 +770,7 @@ func submitOrder(pair string,side string,otype string,amount float64,price float
                                 id := resp["id"].(string)
                                 storeOrder(exchange_name,id,pair,"SPOT",side,otype,float64(time.Now().Unix()),"NEW",price,amount)
                         } else {
-				fmt.Println(string(out))
+				fmt.Printf("Submit error: P: %s, S: %s, T: %s, A: %s, Pr: %s\n",pair,side,otype,stramount,strprice)
 			}
 		}
 	}
@@ -902,24 +902,23 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 
 	if (current < limit) && (potwin > float64(minwin) + 1) {
 		var dobuy bool = false
-                fmt.Println("Step 1 confirmed")
 		if (current >= min) && (trend2 < -1) && (trend1 > 0.1) {
 			dobuy = true
 			fmt.Println("Rule 1")
-		}
-                if (current >= min) && (trend3 < -0.3) && (trend2 < -0.1) && (trend2 > -0.5) && (trend1 > 0.1) {
+		} else if (current >= min) && (trend3 < -0.3) && (trend2 < -0.1) && (trend2 > -0.5) && (trend1 > 0.1) {
                         dobuy = true
                         fmt.Println("Rule 2")
-                }
-                if (current >= min) && (trend2 < 0.7) && (trend2 > -0.7) && (trend1 > 0.1) {
+                } else if (current >= min) && (trend2 < 0.7) && (trend2 > -0.7) && (trend1 > 0.1) {
                         dobuy = true
                         fmt.Println("Rule 3")
-                }
+                } else {
+                        fmt.Println("wait due to trend")
+		} 
 		if dobuy {
 			price = limit
 			amount = float64(invest_amount)/price
                 	fmt.Printf("Price: %f\n",limit)
-        	}
+        	} 
 	}
 
 	fmt.Printf("A: %f, P: %f\n",amount,price)
