@@ -165,7 +165,7 @@ func main() {
 
 		for _, v := range os.Args {
                         if v == "jhtest" {
-                                getOrder()
+                                submitOrder()
                                 os.Exit(0)
                         }
 		    	if v == "gethistoriccandlesextended" {
@@ -184,11 +184,11 @@ func main() {
                                 getOrder()
                                 os.Exit(0)
                         }
-/*                        if v == "submitorder" {
+                        if v == "submitorder" {
                                 submitOrder()
                                 os.Exit(0)
                         }
-                        if v == "cancelorder" {
+/*                        if v == "cancelorder" {
                                 cancelOrder()
                                 os.Exit(0)
                         } */
@@ -592,32 +592,46 @@ client := resty.New()
 
 pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
 sFlag = strings.ToLower(sFlag)
+
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-nonce := uuid.New().String()
 
-var query = `amount=`+aFlag+`&price=`+prFlag
+payload := url.Values{}
+payload.Add("nonce",timest)
+payload.Add("pair",pFlag)
+payload.Add("type",strings.ToLower(sFlag))
+payload.Add("ordertype",strings.ToLower(tFlag))
+payload.Add("price",prFlag)
+payload.Add("volume",aFlag)
 
-var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/"+sFlag+"/"+pFlag+"/"+""+
-                    "application/x-www-form-urlencoded"+nonce+timest+"v2"+query
-hash := hmac.New(sha256.New, []byte(apisecret))
-io.WriteString(hash, toSign)
-signature := fmt.Sprintf("%x", hash.Sum(nil))
+b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
+
+signature := getKrakenSignature("/0/private/AddOrder", payload, b64DecodedSecret)
+
 resp, err := client.R().
-        SetHeader("Accept", "application/json").
-	SetHeader("Content-Type", "application/x-www-form-urlencoded").
-	SetHeader("X-Auth", "BITSTAMP "+apikey).
-	SetHeader("X-Auth-Signature", signature).
-	SetHeader("X-Auth-Nonce", nonce).
-	SetHeader("X-Auth-Timestamp", timest).
-	SetHeader("X-Auth-Version", "v2").
-        SetBody(query).
-	Post("https://www.bitstamp.net/api/v2/"+sFlag+"/"+pFlag+"/")
+        SetBody(payload.Encode()).
+	SetHeader("Accept", "application/json").
+	SetHeader("API-Key", apikey).
+	SetHeader("API-Sign", signature).
+        SetHeader("User-Agent", "yourCryptoBot").
+	SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
+	Post("https://api.kraken.com/0/private/AddOrder")
 if err != nil {
 	fmt.Println(err)
 	return
 }
 
-fmt.Println(resp.String())
+//fmt.Println(resp.String())
+
+pos := strings.Index(resp.String(), "txid") + 8
+if pos < 10 {
+	fmt.Println("{\"status\": \"invalid\"}")
+} else {
+	statstr := string(resp.String()[pos:pos+19])
+	idarr := strings.Fields(statstr)
+	id := idarr[0]
+        fmt.Println("{\"id\": \""+id+"\"}")
+}
+
 }
 
 func cancelOrder(){
