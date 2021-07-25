@@ -165,7 +165,7 @@ func main() {
 
 		for _, v := range os.Args {
                         if v == "jhtest" {
-                                getOrders()
+                                getOrder()
                                 os.Exit(0)
                         }
 		    	if v == "gethistoriccandlesextended" {
@@ -180,11 +180,11 @@ func main() {
                                 getOrders()
                                 os.Exit(0)
                         }
-/*                        if v == "getorder" {
+                        if v == "getorder" {
                                 getOrder()
                                 os.Exit(0)
                         }
-                        if v == "submitorder" {
+/*                        if v == "submitorder" {
                                 submitOrder()
                                 os.Exit(0)
                         }
@@ -497,7 +497,7 @@ for key, order := range result {
         	out += "   \"id\": \""+key+"\",\n"
         	out += "   \"base_currency\": \""+base+"\",\n"
         	out += "   \"quote_currency\": \"EUR\",\n"
-        	out += "   \"asset_type\": \"spot\",\n"
+        	out += "   \"asset_type\": \"SPOT\",\n"
         	out += "   \"order_side\": \""+order_side+"\",\n"
         	out += "   \"order_type\": \""+typ+"\",\n"
         	out += "   \"creation_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
@@ -518,10 +518,9 @@ fmt.Println(out)
 
 func getOrder() {
 var order map[string]interface{}
-var status string
-var id float64
+var result map[string]interface{}
+var status string = "invalid"
 var out string
-var query string
 
 // Create a Resty Client
 client := resty.New()
@@ -529,27 +528,31 @@ client := resty.New()
 //currencies := strings.Split(pFlag, "-")
 
 pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
+
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-nonce := uuid.New().String()
-var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/order_status/"+""+
-                    "application/x-www-form-urlencoded"+nonce+timest+"v2"+query
-hash := hmac.New(sha256.New, []byte(apisecret))
-io.WriteString(hash, toSign)
-signature := fmt.Sprintf("%x", hash.Sum(nil))
+
+payload := url.Values{}
+payload.Add("nonce",timest)
+payload.Add("txid",oFlag)
+
+b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
+
+signature := getKrakenSignature("/0/private/QueryOrders", payload, b64DecodedSecret)
+
 resp, err := client.R().
+        SetBody(payload.Encode()).
         SetHeader("Accept", "application/json").
-	SetHeader("Content-Type", "application/x-www-form-urlencoded").
-	SetHeader("X-Auth", "BITSTAMP "+apikey).
-	SetHeader("X-Auth-Signature", signature).
-	SetHeader("X-Auth-Nonce", nonce).
-	SetHeader("X-Auth-Timestamp", timest).
-	SetHeader("X-Auth-Version", "v2").
-        SetBody(query).
-	Post("https://www.bitstamp.net/api/v2/order_status/")
+        SetHeader("API-Key", apikey).
+        SetHeader("API-Sign", signature).
+        SetHeader("User-Agent", "yourCryptoBot").
+        SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
+        Post("https://api.kraken.com/0/private/QueryOrders")
 if err != nil {
-	fmt.Println(err)
-	return
+        fmt.Println(err)
+        return
 }
+
+//fmt.Println(resp.String())
 
 err = json.Unmarshal(resp.Body(), &order)
 if err != nil { // Handle JSON errors
@@ -558,13 +561,23 @@ if err != nil { // Handle JSON errors
        	return
 }
 
+if order["result"] != nil {
+	result = order["result"].(map[string]interface{})
+	rstr := fmt.Sprintf("Map: %v", result)
+	pos := strings.Index(rstr, "status:") + 7
+	statstr := string(rstr[pos:pos+20])
+	statarr := strings.Fields(statstr)
+	status = statarr[0]
+}
+
 out = "{\n"
 
-if order != nil {
-        id = order["id"].(float64)
-        status = order["status"].(string)
+if status != "invalid" {
         out += "   \"exchange\": \""+exchange_name+"\",\n"
-	out += "   \"id\": \""+fmt.Sprintf("%.0f",id)+"\",\n"
+	out += "   \"id\": \""+oFlag+"\",\n"
+        out += "   \"status\": \""+strings.ToUpper(status)+"\"\n"
+} else {
+        out += "   \"exchange\": \""+exchange_name+"\",\n"
         out += "   \"status\": \""+strings.ToUpper(status)+"\"\n"
 }
 
