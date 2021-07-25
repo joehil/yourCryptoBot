@@ -165,7 +165,7 @@ func main() {
 
 		for _, v := range os.Args {
                         if v == "jhtest" {
-                                getAccount()
+                                getOrders()
                                 os.Exit(0)
                         }
 		    	if v == "gethistoriccandlesextended" {
@@ -176,11 +176,11 @@ func main() {
                                 getAccount()
                                 os.Exit(0)
                         }
-/*                        if v == "getorders" {
+                        if v == "getorders" {
                                 getOrders()
                                 os.Exit(0)
                         }
-                        if v == "getorder" {
+/*                        if v == "getorder" {
                                 getOrder()
                                 os.Exit(0)
                         }
@@ -424,40 +424,44 @@ for key, account := range accounts {
 }
 
 func getOrders() {
-var orders []interface{}
-var tm string
-var id string
+var orders map[string]interface{}
+var result map[string]interface{}
 var price string
 var amount string
-var typ string
 var out string
-var tim time.Time
+var pair string
+var typ string
+var order_side string
+var tim time.Time = time.Now()
 
 // Create a Resty Client
 client := resty.New()
 
-currencies := strings.Split(pFlag, "-")
+//currencies := strings.Split(pFlag, "-")
 
-pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-nonce := uuid.New().String()
-var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/open_orders/"+pFlag+"/"+""+
-                    ""+nonce+timest+"v2"
-hash := hmac.New(sha256.New, []byte(apisecret))
-io.WriteString(hash, toSign)
-signature := fmt.Sprintf("%x", hash.Sum(nil))
+
+payload := url.Values{}
+payload.Add("nonce",timest)
+
+b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
+
+signature := getKrakenSignature("/0/private/OpenOrders", payload, b64DecodedSecret)
+
 resp, err := client.R().
-	SetHeader("Accept", "application/json").
-	SetHeader("X-Auth", "BITSTAMP "+apikey).
-	SetHeader("X-Auth-Signature", signature).
-	SetHeader("X-Auth-Nonce", nonce).
-	SetHeader("X-Auth-Timestamp", timest).
-	SetHeader("X-Auth-Version", "v2").
-	Post("https://www.bitstamp.net/api/v2/open_orders/"+pFlag+"/")
+        SetBody(payload.Encode()).
+        SetHeader("Accept", "application/json").
+        SetHeader("API-Key", apikey).
+        SetHeader("API-Sign", signature).
+        SetHeader("User-Agent", "yourCryptoBot").
+        SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
+        Post("https://api.kraken.com/0/private/OpenOrders")
 if err != nil {
-	fmt.Println(err)
-	return
+        fmt.Println(err)
+        return
 }
+
+//fmt.Println(resp.String())
 
 err = json.Unmarshal(resp.Body(), &orders)
 if err != nil { // Handle JSON errors
@@ -466,37 +470,43 @@ if err != nil { // Handle JSON errors
        	return
 }
 
+result = orders["result"].(map[string]interface{})
+result = result["open"].(map[string]interface{})
+
 out = "{\n"
 out += " \"orders\": [\n"
 
-for _, order := range orders {
-        od := order.(map[string]interface{})
-        if od != nil {
-                id = od["id"].(string)
-                tm = od["datetime"].(string)
-		tim, _ = time.Parse("2006-01-02 15:04:05", tm)
-                amount = od["amount"].(string)
-                price = od["price"].(string)
-		typ = od["type"].(string)
-		out += "   {\n"
-                out += "   \"exchange\": \""+exchange_name+"\",\n"
-                out += "   \"id\": \""+id+"\",\n"
-                out += "   \"base_currency\": \""+strings.ToUpper(currencies[0])+"\",\n"
-                out += "   \"quote_currency\": \""+strings.ToUpper(currencies[1])+"\",\n"
-                out += "   \"asset_type\": \"spot\",\n"
-		if typ == "1" {
-                	out += "   \"order_side\": \"SELL\",\n"
-		} else {
-                        out += "   \"order_side\": \"BUY\",\n"
-		}
-                out += "   \"order_type\": \"LIMIT\",\n"
-                out += "   \"creation_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
-                out += "   \"update_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
-                out += "   \"status\": \"NEW\",\n"
-                out += "   \"price\": "+price+",\n"
-                out += "   \"amount\": "+amount+",\n"
-                out += "   \"open_volume\": "+amount+"\n"
-                out += "   }\n"
+for key, order := range result {
+	var ord map[string]interface{}
+	var desc map[string]interface{}
+	ord = order.(map[string]interface{})
+	desc = ord["descr"].(map[string]interface{})
+	pair = desc["pair"].(string)
+
+	base := strings.ReplaceAll(pair, "EUR", "")
+	pair = base + "-EUR"
+
+	price = desc["price"].(string)
+	amount = desc["order"].(string)
+	amnts := strings.Split(amount, " ") 
+	order_side = strings.ToUpper(desc["type"].(string))
+        typ = strings.ToUpper(desc["ordertype"].(string))
+	if pair == pFlag {
+        	out += "   {\n"
+        	out += "   \"exchange\": \""+exchange_name+"\",\n"
+        	out += "   \"id\": \""+key+"\",\n"
+        	out += "   \"base_currency\": \""+base+"\",\n"
+        	out += "   \"quote_currency\": \"EUR\",\n"
+        	out += "   \"asset_type\": \"spot\",\n"
+        	out += "   \"order_side\": \""+order_side+"\",\n"
+        	out += "   \"order_type\": \""+typ+"\",\n"
+        	out += "   \"creation_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
+        	out += "   \"update_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
+        	out += "   \"status\": \"NEW\",\n"
+        	out += "   \"price\": "+price+",\n"
+        	out += "   \"amount\": "+amnts[1]+",\n"
+        	out += "   \"open_volume\": "+amnts[1]+"\n"
+        	out += "   }\n"
 	}
 }
 
