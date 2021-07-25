@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/exec"
 	"fmt"
-	"io"
 	flag "github.com/spf13/pflag"
 	"time"
 	"strings"
@@ -39,7 +38,6 @@ import (
 	"encoding/json" 
 	"github.com/go-resty/resty/v2"
 	"github.com/spf13/viper"
-	"github.com/google/uuid"
 )
 
 var pipeFile = "/tmp/yourpipe"
@@ -164,10 +162,6 @@ func main() {
 		}
 
 		for _, v := range os.Args {
-                        if v == "jhtest" {
-                                submitOrder()
-                                os.Exit(0)
-                        }
 		    	if v == "gethistoriccandlesextended" {
 				getCandles()
 				os.Exit(0)
@@ -188,10 +182,10 @@ func main() {
                                 submitOrder()
                                 os.Exit(0)
                         }
-/*                        if v == "cancelorder" {
+                        if v == "cancelorder" {
                                 cancelOrder()
                                 os.Exit(0)
-                        } */
+                        }
 		}
 
 		argsWithoutProg := os.Args[1:]
@@ -635,58 +629,49 @@ if pos < 10 {
 }
 
 func cancelOrder(){
-var order map[string]interface{}
-var id float64
 var out string
 
 // Create a Resty Client
 client := resty.New()
 
-//currencies := strings.Split(pFlag, "-")
-
 pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
+
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-nonce := uuid.New().String()
-var query = `id=`+oFlag
-var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/cancel_order/"+""+
-                    "application/x-www-form-urlencoded"+nonce+timest+"v2"+query
-hash := hmac.New(sha256.New, []byte(apisecret))
-io.WriteString(hash, toSign)
-signature := fmt.Sprintf("%x", hash.Sum(nil))
+
+payload := url.Values{}
+payload.Add("nonce",timest)
+payload.Add("txid",oFlag)
+
+b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
+
+signature := getKrakenSignature("/0/private/CancelOrder", payload, b64DecodedSecret)
+
 resp, err := client.R().
-        SetHeader("Accept", "application/json").
-	SetHeader("Content-Type", "application/x-www-form-urlencoded").
-	SetHeader("X-Auth", "BITSTAMP "+apikey).
-	SetHeader("X-Auth-Signature", signature).
-	SetHeader("X-Auth-Nonce", nonce).
-	SetHeader("X-Auth-Timestamp", timest).
-	SetHeader("X-Auth-Version", "v2").
-        SetBody(query).
-	Post("https://www.bitstamp.net/api/v2/cancel_order/")
+        SetBody(payload.Encode()).
+	SetHeader("Accept", "application/json").
+	SetHeader("API-Key", apikey).
+	SetHeader("API-Sign", signature).
+        SetHeader("User-Agent", "yourCryptoBot").
+	SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
+	Post("https://api.kraken.com/0/private/CancelOrder")
 if err != nil {
 	fmt.Println(err)
 	return
 }
 
-err = json.Unmarshal(resp.Body(), &order)
-if err != nil { // Handle JSON errors
-       	fmt.Printf("JSON error: %v\n", err)
-       	fmt.Printf("JSON input: %v\n", resp.Body())
-       	return
-}
+//fmt.Println(resp.String())
+
+pos := strings.Index(resp.String(), "Invalid order")
 
 out = "{\n"
 
-if order != nil {
-	if order["id"] != nil {
-        	id = order["id"].(float64)
-        	out += "   \"id\": \""+fmt.Sprintf("%.0f",id)+"\",\n"
-        	out += "   \"status\": \"success\",\n"
-	} else {
-                out += "   \"status\": \"failed\",\n"
-	}
-        out += "   \"exchange\": \""+exchange_name+"\"\n"
+if pos < 5 {
+       	out += "   \"id\": \""+oFlag+"\",\n"
+       	out += "   \"status\": \"success\",\n"
+} else {
+        out += "   \"status\": \"failed\",\n"
 }
+out += "   \"exchange\": \""+exchange_name+"\"\n"
 
 out += "}"
  
