@@ -52,6 +52,7 @@ var pairs []string
 var tradepairs []string
 
 var gctcmd string
+var wwwpath string
 
 var gctuser string
 var gctpassword string
@@ -64,6 +65,7 @@ var tbtoken string
 var limit_depth int
 var invest_amount int
 var minwin int
+var useticker bool = false
 
 var amountcomma map[string]string
 var pricecomma map[string]string
@@ -1159,6 +1161,8 @@ func read_config() {
 
 	gctcmd = viper.GetString("gctcmd")
 
+        wwwpath = viper.GetString("wwwpath")
+
 	gctuser = viper.GetString("gctuser")
         gctpassword = viper.GetString("gctpassword")
 
@@ -1178,6 +1182,8 @@ func read_config() {
 	limit_depth = viper.GetInt("limit_depth")
         invest_amount = viper.GetInt("invest_amount")
         minwin = viper.GetInt("minwin")
+
+	useticker = viper.GetBool("useticker")
 
         parm,err := getParms("limit_depth")
         if err == nil {
@@ -1796,7 +1802,7 @@ func writeChart(pair string) {
 
         fmt.Printf("Write chart %s\n",pair)
 
-	f, err := os.Create("/var/www/html/"+exchange_name+"-"+pair+".html")
+	f, err := os.Create(wwwpath+"/"+exchange_name+"-"+pair+".html")
 
 	if err != nil {
         	panic(err)
@@ -1995,5 +2001,9 @@ func deactivatePositions() {
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
+
+}
+
+func runticker(exchange string, pair string, side string, limit float64, current float64){
 
 }
