@@ -579,13 +579,14 @@ func updateStats() {
 
         sqlStatement := `
 	WITH subquery AS (
-	select close,pair from yourcandle y 
+	select close, pair, ((close - open) * 100 / open) as lastcandle from yourcandle y 
 	where timestamp =
 	(select max(timestamp) from yourcandle where LOWER(exchange) = $1)
 	AND LOWER(exchange) = $1
 	)
 	UPDATE yourlimits l
-	SET current = subquery.close
+	SET current = subquery.close,
+	lastcandle = subquery.lastcandle
 	FROM subquery
 	WHERE l.pair = subquery.pair
 	AND LOWER(l.exchange) = $1;`
