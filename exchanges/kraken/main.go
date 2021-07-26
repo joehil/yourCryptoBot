@@ -618,7 +618,8 @@ if err != nil {
 
 pos := strings.Index(resp.String(), "txid") + 8
 if pos < 10 {
-	fmt.Println("{\"status\": \"invalid\"}")
+	fmt.Println("{\"status\": \"invalid\",\n")
+        fmt.Println("\"message\": \""+resp.String()+"\"}")
 } else {
 	statstr := string(resp.String()[pos:pos+19])
 	idarr := strings.Fields(statstr)
