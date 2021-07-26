@@ -1284,7 +1284,7 @@ func trend1(pair string) {
         CheckError(err)
 
         defer db.Close()
-		
+
         r := new(regression.Regression)
         r.SetObserved("Close")
         r.SetVar(0, "Timestamp")
@@ -1292,10 +1292,11 @@ func trend1(pair string) {
         sqlStatement := `
         select "timestamp", "close"  from yourcandle
         where pair = $1
+	AND LOWER(exchange) = $2
         and "timestamp" > current_timestamp - interval '1 hour'
 	order by "timestamp";`
 
-        rows, err := db.Query(sqlStatement, pair)
+        rows, err := db.Query(sqlStatement, pair, exchange_name)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -1365,11 +1366,12 @@ func trend3(pair string) {
         sqlStatement := `
         select "timestamp", "close"  from yourcandle
         where pair = $1
+	AND LOWER(exchange) = $2
         and "timestamp" > current_timestamp - interval '4 hours'
         and "timestamp" <= current_timestamp - interval '1 hours'
         order by "timestamp";`
 
-        rows, err := db.Query(sqlStatement, pair)
+        rows, err := db.Query(sqlStatement, pair, exchange_name)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -1439,11 +1441,12 @@ func trend2(pair string) {
         sqlStatement := `
         select "timestamp", "close"  from yourcandle
         where pair = $1
+	AND LOWER(exchange) = $2
         and "timestamp" > current_timestamp - interval '2 hours'
 	and "timestamp" <= current_timestamp - interval '1 hours'
         order by "timestamp";`
 
-        rows, err := db.Query(sqlStatement, pair)
+        rows, err := db.Query(sqlStatement, pair, exchange_name)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -1579,7 +1582,7 @@ func processOrders() {
                         fmt.Println(o)
 
 			storeOrder(o.exchange,o.id,o.base_currency+"-"+o.quote_currency,o.asset,o.order_side,o.order_type,o.update_time,o.status,o.price,o.amount)
-			
+
 			if (o.status == "FILLED" || o.status == "CLOSED" || o.status == "FINISHED") && o.order_side == "BUY" {
 				insertPositions(o.exchange,o.base_currency+"-"+o.quote_currency,o.order_side,time.Unix(int64(o.update_time), 0),o.price,o.amount)
                         	submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" bought")
@@ -1952,7 +1955,8 @@ func activatePosition(pair string) {
 	and pair = $2
 	and pair not in 
 	(select pair from yourposition x
-	where active = true)
+	where active = true
+	AND LOWER(exchange) = $1)
 	and notrade = false
 	and rate < 
 	(select limitsell from yourlimits l
