@@ -196,6 +196,10 @@ func main() {
                         forceOrder(os.Args[3],os.Args[4],os.Args[5])
                         os.Exit(0)
                 }
+                if a1 == "ticker" {
+                        runTicker(os.Args[3],os.Args[4],os.Args[5],os.Args[6])
+                        os.Exit(0)
+                }
                 if a1 == "telegram" {
                         sendTelegram()
                         os.Exit(0)
@@ -2004,6 +2008,45 @@ func deactivatePositions() {
 
 }
 
-func runticker(exchange string, pair string, side string, limit float64, current float64){
+func runTicker(pair string, side string, limitstr string, currentstr string){
+	var level float64
+	current, _ := strconv.ParseFloat(currentstr, 64)
+        limit, _ := strconv.ParseFloat(limitstr, 64)
+	side = strings.ToUpper(side)
+        pair = strings.ToUpper(pair)
 
+	if side == "BUY" {
+		level = limit - ((limit - current) / 2) 
+	}
+        if side == "SELL" {
+                level = limit + ((current - limit) / 2)
+        }
+
+	var i int32 = 0
+	for i < 36 {
+	        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getticker",
+	        "--exchange",exchange_name,"--asset","SPOT","--pair",pair).Output()
+	        if err != nil {
+	                fmt.Printf("Command finished with error: %v", err)
+	        } else {
+//			fmt.Println(string(out))
+			outstr := string(out)
+			pos := strings.Index(outstr, "\"last\"") + 8
+			laststr := string(outstr[pos:pos+20])
+			lastarr := strings.Split(laststr, ",")
+			laststr = lastarr[0]
+			last, _ := strconv.ParseFloat(laststr, 64)
+			fmt.Printf("Last: %f, Current: %f, Limit: %f, Level: %f\n",last, current, limit, level)
+			if side == "BUY" && last > level {
+				fmt.Println("Buy now!")
+				i = 9999
+			}
+                        if side == "SELL" && last < level {
+                                fmt.Println("Sell now!")
+				i = 9999
+                        }
+		} 
+		time.Sleep(15 * time.Second)
+		i++
+	}
 }
