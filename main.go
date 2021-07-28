@@ -833,34 +833,6 @@ func getParms(key string) (parms Parm, err error) {
 	return
 }
 
-func getBuyPrice(pair string) (price float64, err error) {
-        fmt.Printf("Get buy price %v\n",pair)
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
-
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
-
-        defer db.Close()
-
-        sqlStatement := `
-	select limitbuy from yourlimits y 
-	where y.pair = $1
-	AND LOWER(y.exchange) = $2
-	and y.pair not in 
-	(select pair from yourposition p
-	where p.pair = $1
-	AND LOWER(p.exchange) = $2)
-	and y.trend3 > -1
-	and not current < min
-	and not potwin < 3;`
-
-        err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&price)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-        return
-}
-
 func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 	var current float64
 	var limit float64
