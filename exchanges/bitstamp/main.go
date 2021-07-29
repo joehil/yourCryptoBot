@@ -163,6 +163,10 @@ func main() {
 				getCandles()
 				os.Exit(0)
     			}
+                        if v == "getticker" {
+                                getTicker()
+                                os.Exit(0)
+                        }
                         if v == "getaccountinfo" {
                                 getAccount()
                                 os.Exit(0)
@@ -350,6 +354,35 @@ out += "}\n"
 
 fmt.Print(out)
 
+}
+
+func getTicker() {
+pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
+
+// Create a Resty Client
+client := resty.New()
+
+resp, err := client.R().
+      SetHeader("Accept", "application/json").
+      Get("https://www.bitstamp.net/api/v2/ticker/"+pFlag+"/")
+
+if err != nil {
+	fmt.Println(err)
+	return
+}
+
+//fmt.Println(resp.String())
+
+pos := strings.Index(resp.String(), "\"last\": \"") + 9
+if pos < 15 {
+	fmt.Println("{\"status\": \"invalid\",\n")
+        fmt.Println("\"message\": \""+resp.String()+"\"}")
+} else {
+	laststr := string(resp.String()[pos:pos+19])
+	lastarr := strings.Split(laststr,"\"")
+	last := lastarr[0]
+        fmt.Println("{\"last\": "+last+",\n\"exchange\": \""+exchange_name+"\"}")
+}
 }
 
 func getAccount() {
