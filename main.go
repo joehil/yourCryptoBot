@@ -197,7 +197,7 @@ func main() {
                         os.Exit(0)
                 }
                 if a1 == "ticker" {
-                        runTicker(os.Args[3],os.Args[4],os.Args[5],os.Args[6])
+                        runTicker(os.Args[3],os.Args[4],os.Args[5],os.Args[6],os.Args[7])
                         os.Exit(0)
                 }
                 if a1 == "telegram" {
@@ -894,7 +894,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
                         fmt.Println("wait due to trend")
 			if useticker {
         			_ = exec.Command(os.Args[0], exchange_name, "ticker", pair,
-        				"BUY",fmt.Sprintf("%f",limit),fmt.Sprintf("%f",current)).Start()
+        				"BUY",fmt.Sprintf("%f",limit),fmt.Sprintf("%f",current),"0").Start()
 				fmt.Printf("BUY ticker started -- P: %s, L: %f, C: %f\n", pair, limit, current)
 			}
 		} 
@@ -969,7 +969,7 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
                         fmt.Println("Wait due to trend")
                         if useticker {
                                 _ = exec.Command(os.Args[0], exchange_name, "ticker", pair,
-                                        "SELL",fmt.Sprintf("%f",limit),fmt.Sprintf("%f",current)).Start()
+                                        "SELL",fmt.Sprintf("%f",limit),fmt.Sprintf("%f",current),fmt.Sprintf("%f",amnt)).Start()
                                 fmt.Printf("Sell ticker started -- P: %s, L: %f, C: %f\n", pair, limit, current)
                         }
 		}
@@ -1990,11 +1990,12 @@ func deactivatePositions() {
 
 }
 
-func runTicker(pair string, side string, limitstr string, currentstr string){
+func runTicker(pair string, side string, limitstr string, currentstr string, amountstr string){
 	var level float64
 
 	current, _ := strconv.ParseFloat(currentstr, 64)
         limit, _ := strconv.ParseFloat(limitstr, 64)
+        amount, _ := strconv.ParseFloat(amountstr, 64)
 	side = strings.ToUpper(side)
         pair = strings.ToUpper(pair)
 
@@ -2021,11 +2022,14 @@ func runTicker(pair string, side string, limitstr string, currentstr string){
 			last, _ := strconv.ParseFloat(laststr, 64)
 //			submitTelegram(fmt.Sprintf("Last: %f, Current: %f, Limit: %f, Level: %f\n",last, current, limit, level))
 			if side == "BUY" && last > level {
-				submitTelegram(fmt.Sprintln("Buy %s now!\n",pair))
+				amount := float64(invest_amount)/limit
+                                _ = submitOrder(pair,"BUY","LIMIT",amount,limit,"ticker")
+				submitTelegram(fmt.Sprintf("Ticker bought %f %s at %f\n",amount,pair,limit))
 				i = 9999
 			}
                         if side == "SELL" && last < level {
-                                submitTelegram(fmt.Sprintln("Sell %s now!\n",pair))
+                                _ = submitOrder(pair,"SELL","LIMIT",amount,limit,"ticker")
+                                submitTelegram(fmt.Sprintf("Ticker sold %f %s at %f\n",amount,pair,limit))
 				i = 9999
                         }
 		} 
@@ -2036,7 +2040,7 @@ func runTicker(pair string, side string, limitstr string, currentstr string){
 
 func jhtest() {
         err := exec.Command(os.Args[0], exchange_name, "ticker", "ETH-EUR",
-        "BUY","2300","2400").Start()
+        "BUY","2300","2400","0").Start()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
         } else {
