@@ -166,6 +166,10 @@ func main() {
 				getCandles()
 				os.Exit(0)
     			}
+                        if v == "getticker" {
+                                getTicker()
+                                os.Exit(0)
+                        }
                         if v == "getaccountinfo" {
                                 getAccount()
                                 os.Exit(0)
@@ -367,6 +371,35 @@ out += " ]\n"
 out += "}\n"
 
 fmt.Print(out)
+}
+
+func getTicker() {
+pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
+
+// Create a Resty Client
+client := resty.New()
+
+resp, err := client.R().
+      SetQueryString("pair="+pFlag).
+      SetHeader("Accept", "application/json").
+      Get("https://api.kraken.com/0/public/Ticker")
+
+if err != nil {
+	fmt.Println(err)
+	return
+}
+
+//fmt.Println(resp.String())
+pos := strings.Index(resp.String(), "\"c\":[\"") + 6
+if pos < 10 {
+	fmt.Println("{\"status\": \"invalid\",\n")
+        fmt.Println("\"message\": \""+resp.String()+"\"}")
+} else {
+	laststr := string(resp.String()[pos:pos+19])
+	lastarr := strings.Split(laststr,"\"")
+	last := lastarr[0]
+        fmt.Println("{\"last\": "+last+",\n\"exchange\": \""+exchange_name+"\"}")
+}
 
 }
 

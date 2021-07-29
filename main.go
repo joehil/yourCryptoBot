@@ -1992,6 +1992,8 @@ func deactivatePositions() {
 
 func runTicker(pair string, side string, limitstr string, currentstr string, amountstr string){
 	var level float64
+	var tmthen int64 = time.Now().Unix()
+	var tmnow int64 = tmthen
 
 	current, _ := strconv.ParseFloat(currentstr, 64)
         limit, _ := strconv.ParseFloat(limitstr, 64)
@@ -1999,15 +2001,10 @@ func runTicker(pair string, side string, limitstr string, currentstr string, amo
 	side = strings.ToUpper(side)
         pair = strings.ToUpper(pair)
 
-	if side == "BUY" {
-		level = limit - ((limit - current) / 2) 
-	}
-        if side == "SELL" {
-                level = limit + ((current - limit) / 2)
-        }
+	level = limit + ((current - limit) / 2)
 
-	var i int32 = 0
-	for i < 36 {
+	var i int64 = 0
+	for i < 860 {
 	        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getticker",
 	        "--exchange",exchange_name,"--asset","SPOT","--pair",pair).Output()
 	        if err != nil {
@@ -2023,7 +2020,7 @@ func runTicker(pair string, side string, limitstr string, currentstr string, amo
 //			submitTelegram(fmt.Sprintf("Last: %f, Current: %f, Limit: %f, Level: %f\n",last, current, limit, level))
 			if side == "BUY" && last > level {
 				amount := float64(invest_amount)/limit
-                                _ = submitOrder(pair,"BUY","LIMIT",amount,limit,"ticker")
+//                                _ = submitOrder(pair,"BUY","LIMIT",amount,limit,"ticker")
 				submitTelegram(fmt.Sprintf("Ticker bought %f %s at %f\n",amount,pair,limit))
 				i = 9999
 			}
@@ -2034,7 +2031,8 @@ func runTicker(pair string, side string, limitstr string, currentstr string, amo
                         }
 		} 
 		time.Sleep(15 * time.Second)
-		i++
+		tmnow = time.Now().Unix()
+		i = tmnow - tmthen 
 	}
 }
 
