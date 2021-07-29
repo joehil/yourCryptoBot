@@ -276,13 +276,16 @@ var itime int64
 
 var out string
 
+var tmst time.Time = time.Now()
+var tst int64 = tmst.Unix() - 900
+
 pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
 
 // Create a Resty Client
 client := resty.New()
 
 resp, err := client.R().
-      SetQueryString("limit="+limitFlag+"&step="+iFlag).
+      SetQueryString("limit="+limitFlag+"&step="+iFlag+"&start="+fmt.Sprintf("%d",tst)).
       SetHeader("Accept", "application/json").
       Get("https://www.bitstamp.net/api/v2/ohlc/"+pFlag+"/")
 
