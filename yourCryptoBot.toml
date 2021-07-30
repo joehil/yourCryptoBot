@@ -7,18 +7,29 @@ sleepbeforerun = 0
 # location of gctcli command
 gctcmd = "<path to exchange interface>"
 
+#path to directory of webserver
+wwwpath = "/var/www/html/"
+
+#gct user (only important when using gocryptotrader)
 gctuser = "<user>"
 gctpassword = "<password>"
 
+#database access data
 pguser = "<user>"
 pgpassword = "<password>"
 pgdb = "<database>"
 
+#telegram token
 tbtoken = "<telegram token>"
 
+#otp data
 key_issuer = "<issuer>"
 key_account = "<account>"
 key_secret = "<secret>"
+
+apikey = "<apikey>"
+apisecret = "<apisecret>"
+apiclient = "<apiclient>"
 
 # name of exchange
 exchange_name = "kraken"
@@ -52,6 +63,9 @@ limit_depth = 70
 
 #mininum win in %
 minwin = 3
+
+#use tickers
+useticker = true
 
 #comma amount
 [amountcomma]
