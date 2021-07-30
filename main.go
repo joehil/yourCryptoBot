@@ -879,7 +879,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 
 	fmt.Printf("C: %f, L: %f, M: %f, P: %f, T1: %f, T2: %f, T3: %f\n",current,limit,min,potwin,trend1,trend2,trend3)
 
-	if (current < limit) && (potwin > float64(minwin) + 1) {
+	if (current < limit) && (potwin > float64(minwin) + 1) && isEnoughMoney() {
 		var dobuy bool = false
 		if (current >= min) && (trend2 < -1) && (trend1 > 0.1) {
 			dobuy = true
@@ -1949,6 +1949,7 @@ func activatePosition(pair string) {
 	and pair not in 
 	(select pair from yourposition x
 	where active = true
+	AND notrade = false
 	AND LOWER(exchange) = $1)
 	and notrade = false
 	and rate < 
@@ -2037,13 +2038,43 @@ func runTicker(pair string, side string, limitstr string, currentstr string, amo
 	}
 }
 
+func isEnoughMoney() bool {
+        fmt.Println("Is there enough money?")
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        var amount float64
+
+        sqlStatement := `
+        select amount from youraccount
+        where LOWER(exchange) = $1
+	and currency in ('EUR','ZEUR')
+	limit 1;`
+
+        err = db.QueryRow(sqlStatement, exchange_name).Scan(&amount)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+		return false
+        } else {
+		if amount > float64(invest_amount) {
+			return true
+		}
+	}
+	return false
+}
+
 func jhtest() {
-        err := exec.Command(os.Args[0], exchange_name, "ticker", "ETH-EUR",
+	fmt.Println(isEnoughMoney())
+/*        err := exec.Command(os.Args[0], exchange_name, "ticker", "ETH-EUR",
         "BUY","2300","2400","0").Start()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
         } else {
                 fmt.Println("Everything ok")
 
-	}
+	} */
 }
