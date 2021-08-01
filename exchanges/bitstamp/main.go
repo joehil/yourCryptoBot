@@ -671,8 +671,8 @@ fmt.Println(out)
 
 func getTransactions() {
 var transactions []interface{}
-//var id float64
-//var out string
+var out string
+var docomma bool = false
 
 // Create a Resty Client
 client := resty.New()
@@ -712,17 +712,27 @@ if err != nil { // Handle JSON errors
 
 //fmt.Println(resp.String()) 
 
+out = "[\n"
+
 for _, transaction := range transactions {
         trans := transaction.(map[string]interface{})
         if trans != nil {
+		if docomma {
+			out += fmt.Sprintln(",")
+		}
 		fee := trans["fee"].(string)
 		amount := trans[strings.ToLower(currencies[0])].(string)
                 amount_quote := trans[strings.ToLower(currencies[1])].(string)
                 price := trans[strings.ToLower(currencies[0])+"_"+strings.ToLower(currencies[1])].(float64)
                 timest := trans["datetime"].(string)
-		fmt.Println(trans)
-		fmt.Printf("Fee: %s, Am: %s, Qu: %s, Pr: %f, Ti: %s\n",fee,amount,amount_quote,price,timest)
+//		fmt.Println(trans)
+		out += fmt.Sprintf("{\"fee\": %s, \"amount\": %s, \"amount_quote\": %s, \"price\": %f, \"timestamp\": %s, \"pair\": \"%s\"}\n",
+				fee,amount,amount_quote,price,timest,strings.ToUpper(currencies[0])+"-"+strings.ToUpper(currencies[1]))
+		docomma = true
 	}
 }
+out += "]"
+
+fmt.Println(out)
 
 }
