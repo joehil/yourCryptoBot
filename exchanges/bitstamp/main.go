@@ -720,14 +720,15 @@ for _, transaction := range transactions {
 		if docomma {
 			out += fmt.Sprintln(",")
 		}
+		id := trans["id"].(float64)
 		fee := trans["fee"].(string)
 		amount := trans[strings.ToLower(currencies[0])].(string)
                 amount_quote := trans[strings.ToLower(currencies[1])].(string)
                 price := trans[strings.ToLower(currencies[0])+"_"+strings.ToLower(currencies[1])].(float64)
                 timest := trans["datetime"].(string)
 //		fmt.Println(trans)
-		out += fmt.Sprintf("{\"fee\": %s, \"amount\": %s, \"amount_quote\": %s, \"price\": %f, \"timestamp\": %s, \"pair\": \"%s\"}\n",
-				fee,amount,amount_quote,price,timest,strings.ToUpper(currencies[0])+"-"+strings.ToUpper(currencies[1]))
+		out += fmt.Sprintf("{\"id\": \"%.0f\", \"fee\": %s, \"amount\": %s, \"amount_quote\": %s, \"price\": %f, \"timestamp\": \"%s\", \"pair\": \"%s\"}\n",
+				id,fee,amount,amount_quote,price,timest,strings.ToUpper(currencies[0])+"-"+strings.ToUpper(currencies[1]))
 		docomma = true
 	}
 }

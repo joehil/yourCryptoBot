@@ -2023,7 +2023,7 @@ func runTicker(pair string, side string, limitstr string, currentstr string, amo
 			if side == "BUY" && last > level {
 				amount := float64(invest_amount)/limit
                                 _ = submitOrder(pair,"BUY","LIMIT",amount,limit,"ticker")
-				submitTelegram(fmt.Sprintf("Ticker bought %f %s at %f\n",amount,pair,limit))
+				submitTelegram(fmt.Sprintf("Ticker ordered %f %s at %f\n",amount,pair,limit))
 				done = true
 			}
                         if side == "SELL" && last < level {
@@ -2068,7 +2068,7 @@ func isEnoughMoney() bool {
 }
 
 func jhtest() {
-	fmt.Println(isEnoughMoney())
+	getTransactions()
 /*        err := exec.Command(os.Args[0], exchange_name, "ticker", "ETH-EUR",
         "BUY","2300","2400","0").Start()
         if err != nil {
@@ -2078,3 +2078,78 @@ func jhtest() {
 
 	} */
 }
+
+func storeTransactions(pair string, amount float64, amount_quote float64, price float64, timest string, fee float64, id string) {
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+	var layout string = "2006-01-02 15:04:05"
+	t, err := time.Parse(layout, timest)
+        if err != nil {
+                panic(err)
+        }
+
+        sqlStatement := `
+        UPDATE yourtransaction
+	set amount = $2, amount_quote = $3, price = $4, fee = $5
+        where exchange = $1 and timestamp = $6 and pair = $7 and id = $8;`
+        info, err := db.Exec(sqlStatement, exchange_name, amount, amount_quote, price, fee, t, pair, id)
+        if err != nil {
+                panic(err)
+        }
+	count, err := info.RowsAffected()
+    	if err != nil {
+        	panic(err)
+    	}
+        if count == 0 { 
+	        sqlStatement := `
+        	INSERT INTO yourtransaction (exchange, timestamp, pair, amount, price, amount_quote, fee, id)
+        	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+        	_, err = db.Exec(sqlStatement, exchange_name, timest, pair, amount, price, amount_quote, fee, id)
+        	if err != nil {
+                	fmt.Printf("SQL error: %v\n",err)
+        	}
+        }
+}
+
+func getTransaction(pair string) {
+	var transactions []interface{}
+        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "gettransactions",
+        "-e",exchange_name,"-a","SPOT","--pair",pair).Output()
+        if err != nil {
+                fmt.Printf("Command finished with error: %v", err)
+        }
+//	fmt.Printf(string(out))
+
+	err = json.Unmarshal(out, &transactions)
+	if err != nil { // Handle JSON errors
+        	fmt.Printf("JSON error: %v\n", err)
+        	fmt.Printf("JSON input: %v\n", string(out))
+        	return
+	}
+
+	for _, transaction := range transactions {
+        	trans := transaction.(map[string]interface{})
+                fmt.Println(trans)
+        	if trans != nil {
+			fee := trans["fee"].(float64)
+			amount := trans["amount"].(float64)
+                	amount_quote := trans["amount_quote"].(float64)
+                	price := trans["price"].(float64)
+                	timest := trans["timestamp"].(string)
+			id := trans["id"].(string)
+			storeTransactions(pair, amount, amount_quote, price, timest, fee, id)
+		}
+	}
+}
+
+func getTransactions() {
+        for _, v := range tradepairs {
+                getTransaction(v)
+        }
+}
+
