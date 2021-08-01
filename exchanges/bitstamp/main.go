@@ -187,6 +187,10 @@ func main() {
                                 cancelOrder()
                                 os.Exit(0)
                         }
+                        if v == "gettransactions" {
+                                getTransactions()
+                                os.Exit(0)
+                        }
 		}
 
 /*		argsWithoutProg := os.Args[1:]
@@ -663,4 +667,62 @@ if order != nil {
 out += "}"
  
 fmt.Println(out) 
+}
+
+func getTransactions() {
+var transactions []interface{}
+//var id float64
+//var out string
+
+// Create a Resty Client
+client := resty.New()
+
+currencies := strings.Split(pFlag, "-")
+
+pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
+timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
+nonce := uuid.New().String()
+var query = `offset=0&limit=100&sort=asc`
+var toSign string = "BITSTAMP "+apikey+"POST"+"www.bitstamp.net"+"/api/v2/user_transactions/"+pFlag+"/"+""+
+                    "application/x-www-form-urlencoded"+nonce+timest+"v2"+query
+hash := hmac.New(sha256.New, []byte(apisecret))
+io.WriteString(hash, toSign)
+signature := fmt.Sprintf("%x", hash.Sum(nil))
+resp, err := client.R().
+        SetHeader("Accept", "application/json").
+        SetHeader("Content-Type", "application/x-www-form-urlencoded").
+        SetHeader("X-Auth", "BITSTAMP "+apikey).
+        SetHeader("X-Auth-Signature", signature).
+        SetHeader("X-Auth-Nonce", nonce).
+        SetHeader("X-Auth-Timestamp", timest).
+        SetHeader("X-Auth-Version", "v2").
+        SetBody(query).
+        Post("https://www.bitstamp.net/api/v2/user_transactions/"+pFlag+"/")
+if err != nil {
+        fmt.Println(err)
+        return
+}
+
+err = json.Unmarshal(resp.Body(), &transactions)
+if err != nil { // Handle JSON errors
+        fmt.Printf("JSON error: %v\n", err)
+        fmt.Printf("JSON input: %v\n", resp.Body())
+        return
+}
+
+//fmt.Println(resp.String()) 
+
+for _, transaction := range transactions {
+        trans := transaction.(map[string]interface{})
+        if trans != nil {
+		fee := trans["fee"].(string)
+		amount := trans[strings.ToLower(currencies[0])].(string)
+                amount_quote := trans[strings.ToLower(currencies[1])].(string)
+                price := trans[strings.ToLower(currencies[0])+"_"+strings.ToLower(currencies[1])].(float64)
+                timest := trans["datetime"].(string)
+		fmt.Println(trans)
+		fmt.Printf("Fee: %s, Am: %s, Qu: %s, Pr: %f, Ti: %s\n",fee,amount,amount_quote,price,timest)
+	}
+}
+
 }
