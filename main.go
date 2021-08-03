@@ -156,6 +156,10 @@ func main() {
                         jhtest()
                         os.Exit(0)
                 }
+                if a1 == "gettransactions" {
+                        getTransactions()
+                        os.Exit(0)
+                }
                 if a1 == "butsell" {
                         time.Sleep(15 * time.Second)
                         getCandles()
@@ -2068,15 +2072,7 @@ func isEnoughMoney() bool {
 }
 
 func jhtest() {
-	getTransactions()
-/*        err := exec.Command(os.Args[0], exchange_name, "ticker", "ETH-EUR",
-        "BUY","2300","2400","0").Start()
-        if err != nil {
-                fmt.Printf("Command finished with error: %v", err)
-        } else {
-                fmt.Println("Everything ok")
-
-	} */
+	writeReport()
 }
 
 func storeTransactions(pair string, amount float64, amount_quote float64, price float64, timest string, fee float64, id string) {
@@ -2152,4 +2148,108 @@ func getTransactions() {
                 getTransaction(v)
         }
 }
+
+func writeReport() {
+        var amount float64
+        var fee float64
+	var pair string
+	var amountstr string
+	var feestr string
+	var out string
+
+        fmt.Println("Write report")
+
+	f, err := os.Create(wwwpath+"/reports/"+exchange_name+".html")
+
+	if err != nil {
+        	panic(err)
+	}
+
+	defer f.Close()
+
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        select pair, sum(amount_quote) as amount, sum(fee) as fee from yourtransaction
+	where LOWER(exchange) = $1
+        and "timestamp" > current_timestamp - interval '30 days'
+        group by pair;`
+
+	amountstr = `['Currency', 'Win per Currency'],`
+	feestr = `['Currency', 'Fee per Currency'],`
+
+        rows, err := db.Query(sqlStatement,exchange_name)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+        defer rows.Close()
+
+        for rows.Next(){
+                if err := rows.Scan(&pair, &amount, &fee); err != nil {
+                        fmt.Println(err)
+                }
+		for amount < 0 {
+			amount += float64(invest_amount)
+		}
+		amountstr += fmt.Sprintf("['%s', %.2f],\n",pair,amount) 
+		feestr += fmt.Sprintf("['%s', %.2f],\n",pair,fee) 
+        }
+	out = `
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load("current", {packages:["corechart"]});
+      google.charts.setOnLoadCallback(drawWin);
+      google.charts.setOnLoadCallback(drawFee);
+      function drawWin() {
+        var data = google.visualization.arrayToDataTable([
+		`
+	out += amountstr
+
+	out += `
+        ]);
+
+        var options = {
+          title: '`+exchange_name+` wins',
+          pieSliceText: 'value',
+          pieHole: 0.4,
+        };
+
+        var chart = new google.visualization.PieChart(document.getElementById('donutWin'));
+        chart.draw(data, options);
+      }
+      function drawFee() {
+        var data = google.visualization.arrayToDataTable([
+		`
+	out += feestr
+
+	out += `
+        ]);
+
+        var options = {
+          title: '`+exchange_name+` fees',
+          pieSliceText: 'value',
+          pieHole: 0.4,
+        };
+
+        var chart = new google.visualization.PieChart(document.getElementById('donutFee'));
+        chart.draw(data, options);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="donutWin" style="width: 900px; height: 500px;"></div>
+    <div id="donutFee" style="width: 900px; height: 500px;"></div>
+  </body>
+</html>
+		`
+        _, err = f.WriteString(out)
+}
+
 
