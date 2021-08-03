@@ -158,6 +158,7 @@ func main() {
                 }
                 if a1 == "gettransactions" {
                         getTransactions()
+			writeReport()
                         os.Exit(0)
                 }
                 if a1 == "butsell" {
@@ -2196,8 +2197,8 @@ func writeReport() {
 		for amount < 0 {
 			amount += float64(invest_amount)
 		}
-		amountstr += fmt.Sprintf("['%s', %.2f],\n",pair,amount) 
-		feestr += fmt.Sprintf("['%s', %.2f],\n",pair,fee) 
+		amountstr += fmt.Sprintf("['%s: %3.2f', %.2f],\n",pair,amount,amount) 
+		feestr += fmt.Sprintf("['%s: %3.2f', %.2f],\n",pair,fee,fee) 
         }
 	out = `
 <html>
