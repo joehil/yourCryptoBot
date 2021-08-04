@@ -2152,7 +2152,9 @@ func getTransactions() {
 
 func writeReport() {
         var amount float64
+	var sumamount float64
         var fee float64
+	var sumfee float64
 	var pair string
 	var amountstr string
 	var feestr string
@@ -2198,7 +2200,9 @@ func writeReport() {
 			amount += float64(invest_amount)
 		}
 		amountstr += fmt.Sprintf("['%s: %3.2f', %.2f],\n",pair,amount,amount) 
-		feestr += fmt.Sprintf("['%s: %3.2f', %.2f],\n",pair,fee,fee) 
+		feestr += fmt.Sprintf("['%s: %3.2f', %.2f],\n",pair,fee,fee)
+		sumamount += amount
+		sumfee += fee 
         }
 	out = `
 <html>
@@ -2217,7 +2221,7 @@ func writeReport() {
         ]);
 
         var options = {
-          title: '`+exchange_name+` wins',
+          title: '`+exchange_name+` wins `+fmt.Sprintf("%4.2f",sumamount)+`',
           pieSliceText: 'value',
           pieHole: 0.4,
         };
@@ -2234,7 +2238,7 @@ func writeReport() {
         ]);
 
         var options = {
-          title: '`+exchange_name+` fees',
+          title: '`+exchange_name+` fees `+fmt.Sprintf("%4.2f",sumfee)+`',
           pieSliceText: 'value',
           pieHole: 0.4,
         };
