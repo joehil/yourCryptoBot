@@ -190,6 +190,10 @@ func main() {
                                 cancelOrder()
                                 os.Exit(0)
                         }
+                        if v == "gettransactions" {
+                                getTransactions()
+                                os.Exit(0)
+                        }
 		}
 
 		argsWithoutProg := os.Args[1:]
@@ -710,4 +714,86 @@ out += "   \"exchange\": \""+exchange_name+"\"\n"
 out += "}"
  
 fmt.Println(out) 
+}
+
+func getTransactions() {
+var transactions map[string]interface{}
+var out string
+var rstr string
+var docomma bool = false
+
+// Create a Resty Client
+client := resty.New()
+
+currencies := strings.Split(pFlag, "-")
+
+timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
+
+payload := url.Values{}
+payload.Add("nonce",timest)
+
+b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
+
+signature := getKrakenSignature("/0/private/TradesHistory", payload, b64DecodedSecret)
+
+resp, err := client.R().
+        SetBody(payload.Encode()).
+	SetHeader("Accept", "application/json").
+	SetHeader("API-Key", apikey).
+	SetHeader("API-Sign", signature).
+        SetHeader("User-Agent", "yourCryptoBot").
+	SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
+	Post("https://api.kraken.com/0/private/TradesHistory")
+if err != nil {
+	fmt.Println(err)
+	return
+}
+
+err = json.Unmarshal(resp.Body(), &transactions)
+if err != nil { // Handle JSON errors
+        fmt.Printf("JSON error: %v\n", err)
+        fmt.Printf("JSON input: %v\n", resp.Body())
+        return
+}
+
+fmt.Println(resp.String()) 
+
+
+if transactions["result"] != nil {
+	result := transactions["result"].(map[string]interface{})
+	rstr = fmt.Sprintf("Map: %v", result)
+/*	pos := strings.Index(rstr, "status:") + 7
+	statstr := string(rstr[pos:pos+20])
+	statarr := strings.Fields(statstr)
+	status = statarr[0] */
+}
+
+fmt.Println(rstr)
+
+return
+
+out = "[\n"
+
+for _, transaction := range transactions {
+        trans := transaction.(map[string]interface{})
+        if trans != nil {
+		if docomma {
+			out += fmt.Sprintln(",")
+		}
+		id := trans["id"].(float64)
+		fee := trans["fee"].(string)
+		amount := trans[strings.ToLower(currencies[0])].(string)
+                amount_quote := trans[strings.ToLower(currencies[1])].(string)
+                price := trans[strings.ToLower(currencies[0])+"_"+strings.ToLower(currencies[1])].(float64)
+                timest := trans["datetime"].(string)
+//		fmt.Println(trans)
+		out += fmt.Sprintf("{\"id\": \"%.0f\", \"fee\": %s, \"amount\": %s, \"amount_quote\": %s, \"price\": %f, \"timestamp\": \"%s\", \"pair\": \"%s\"}\n",
+				id,fee,amount,amount_quote,price,timest,strings.ToUpper(currencies[0])+"-"+strings.ToUpper(currencies[1]))
+		docomma = true
+	}
+}
+out += "]"
+
+fmt.Println(out)
+
 }
