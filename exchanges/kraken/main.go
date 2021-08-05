@@ -719,13 +719,10 @@ fmt.Println(out)
 func getTransactions() {
 var transactions map[string]interface{}
 var out string
-var rstr string
 var docomma bool = false
 
 // Create a Resty Client
 client := resty.New()
-
-currencies := strings.Split(pFlag, "-")
 
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
@@ -756,42 +753,41 @@ if err != nil { // Handle JSON errors
         return
 }
 
-fmt.Println(resp.String()) 
-
-
-if transactions["result"] != nil {
-	result := transactions["result"].(map[string]interface{})
-	rstr = fmt.Sprintf("Map: %v", result)
-/*	pos := strings.Index(rstr, "status:") + 7
-	statstr := string(rstr[pos:pos+20])
-	statarr := strings.Fields(statstr)
-	status = statarr[0] */
-}
-
-fmt.Println(rstr)
-
-return
+//fmt.Println(resp.String()) 
 
 out = "[\n"
 
-for _, transaction := range transactions {
-        trans := transaction.(map[string]interface{})
-        if trans != nil {
-		if docomma {
-			out += fmt.Sprintln(",")
+if transactions["result"] != nil {
+	var trad map[string]interface{}
+	result := transactions["result"].(map[string]interface{})
+	trades := result["trades"].(map[string]interface{})
+	for _, tr := range trades {
+		trad = tr.(map[string]interface{})
+        	if docomma {
+                	out += fmt.Sprintln(",")
+        	}
+
+	        id := trad["ordertxid"].(string)
+        	fee := trad["fee"].(string)
+        	amount_quote := trad["cost"].(string)
+        	amount := trad["vol"].(string)
+        	price := trad["price"].(string)
+        	tmst := trad["time"].(float64)
+		tmint := int64(tmst)
+		tmtim := time.Unix(tmint,int64(0))
+		timest := tmtim.Format("2006-01-02 15:04:05.00000")
+        	pair := trad["pair"].(string)
+		pair = strings.ReplaceAll(pair,"EUR","-EUR")
+        	typ := trad["type"].(string)
+		if typ != "sell" {
+			amount_quote = "-" + amount_quote
 		}
-		id := trans["id"].(float64)
-		fee := trans["fee"].(string)
-		amount := trans[strings.ToLower(currencies[0])].(string)
-                amount_quote := trans[strings.ToLower(currencies[1])].(string)
-                price := trans[strings.ToLower(currencies[0])+"_"+strings.ToLower(currencies[1])].(float64)
-                timest := trans["datetime"].(string)
-//		fmt.Println(trans)
-		out += fmt.Sprintf("{\"id\": \"%.0f\", \"fee\": %s, \"amount\": %s, \"amount_quote\": %s, \"price\": %f, \"timestamp\": \"%s\", \"pair\": \"%s\"}\n",
-				id,fee,amount,amount_quote,price,timest,strings.ToUpper(currencies[0])+"-"+strings.ToUpper(currencies[1]))
-		docomma = true
+                out += fmt.Sprintf("{\"id\": \"%s\", \"fee\": %s, \"amount\": %s, \"amount_quote\": %s, \"price\": %s, \"timestamp\": \"%s\", \"pair\": \"%s\"}\n",
+                                id,fee,amount,amount_quote,price,timest,pair)
+                docomma = true
 	}
 }
+
 out += "]"
 
 fmt.Println(out)

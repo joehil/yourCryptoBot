@@ -161,6 +161,11 @@ func main() {
 			writeReport()
                         os.Exit(0)
                 }
+                if a1 == "gettransactionsall" {
+                        getTransactionsAll()
+                        writeReport()
+                        os.Exit(0)
+                }
                 if a1 == "butsell" {
                         time.Sleep(15 * time.Second)
                         getCandles()
@@ -2033,7 +2038,7 @@ func runTicker(pair string, side string, limitstr string, currentstr string, amo
 			}
                         if side == "SELL" && last < level {
                                 _ = submitOrder(pair,"SELL","LIMIT",amount,limit,"ticker")
-                                submitTelegram(fmt.Sprintf("Ticker sold %f %s at %f\n",amount,pair,limit))
+                                submitTelegram(fmt.Sprintf("Ticker offered %f %s at %f\n",amount,pair,limit))
 				done = true
                         }
 		} 
@@ -2110,6 +2115,37 @@ func storeTransactions(pair string, amount float64, amount_quote float64, price 
         	if err != nil {
                 	fmt.Printf("SQL error: %v\n",err)
         	}
+        }
+}
+
+func getTransactionsAll() {
+        var transactions []interface{}
+        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "gettransactions",
+        "-e",exchange_name,"-a","SPOT").Output()
+        if err != nil {
+                fmt.Printf("Command finished with error: %v", err)
+        }
+//      fmt.Printf(string(out))
+
+        err = json.Unmarshal(out, &transactions)
+        if err != nil { // Handle JSON errors
+                fmt.Printf("JSON error: %v\n", err)
+                fmt.Printf("JSON input: %v\n", string(out))
+                return
+        }
+        for _, transaction := range transactions {
+                trans := transaction.(map[string]interface{})
+                fmt.Println(trans)
+                if trans != nil {
+                        fee := trans["fee"].(float64)
+                        amount := trans["amount"].(float64)
+                        amount_quote := trans["amount_quote"].(float64)
+                        price := trans["price"].(float64)
+                        timest := trans["timestamp"].(string)
+                        id := trans["id"].(string)
+			pair := trans["pair"].(string)
+                        storeTransactions(pair, amount, amount_quote, price, timest, fee, id)
+                }
         }
 }
 
