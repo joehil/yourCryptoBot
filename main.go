@@ -180,7 +180,6 @@ func main() {
                         os.Exit(0)
                 }
                 if a1 == "candles" {
-			time.Sleep(15 * time.Second)
                         getCandles()
                         deleteCandles()
                         os.Exit(0)
