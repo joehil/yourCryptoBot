@@ -20,7 +20,7 @@ package main
 
 import (
 	"os"
-	"os/exec"
+//	"os/exec"
 	"fmt"
 	flag "github.com/spf13/pflag"
 	"time"
@@ -166,7 +166,7 @@ func main() {
 				getCandles()
 				os.Exit(0)
     			}
-                        if v == "getticker" {
+/*                        if v == "getticker" {
                                 getTicker()
                                 os.Exit(0)
                         }
@@ -193,15 +193,10 @@ func main() {
                         if v == "gettransactions" {
                                 getTransactions()
                                 os.Exit(0)
-                        }
+                        } */
 		}
 
-		argsWithoutProg := os.Args[1:]
-		out, err := exec.Command(bkpcmd, argsWithoutProg...).Output()
-        	if err != nil {
-                	fmt.Printf("Command finished with error: %v", err)
-        	}
-		fmt.Println(string(out))
+		fmt.Println("{}")
                 os.Exit(0) 
 	}
 	if len(os.Args) == 1 {
