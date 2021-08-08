@@ -51,7 +51,8 @@ CREATE TABLE public.yourlimits (
 	limitsell float8 NULL,
 	trend1 float8 NULL,
 	trend2 float8 NULL,
-	trend3 float8 NULL
+	trend3 float8 NULL,
+	lastcandle float8 NULL
 );
 CREATE UNIQUE INDEX yourlimits_exchange_idx ON public.yourlimits USING btree (exchange, pair);
 
@@ -110,6 +111,23 @@ CREATE TABLE public.yourposition (
 	notrade bool NULL DEFAULT false
 );
 
+-- public.yourtransaction definition
+
+-- Drop table
+
+-- DROP TABLE public.yourtransaction;
+
+CREATE TABLE public.yourtransaction (
+	exchange varchar NULL,
+	"timestamp" timestamp NULL,
+	pair varchar NULL,
+	amount float8 NULL,
+	price float8 NULL,
+	amount_quote float8 NULL,
+	fee float8 NULL,
+	id varchar NULL
+);
+CREATE INDEX yourtransaction_exchange_idx ON public.yourtransaction USING btree (exchange, "timestamp", pair, id);
 
 CREATE UNIQUE INDEX youraccount_exchange_idx ON public.youraccount USING btree (exchange, currency);
 
@@ -121,3 +139,4 @@ CREATE UNIQUE INDEX yourorder_exchange_idx ON public.yourorder USING btree (exch
 
 CREATE UNIQUE INDEX yourparameter_key_idx ON public.yourparameter USING btree (key);
 
+CREATE INDEX yourtransaction_exchange_idx ON public.yourtransaction USING btree (exchange, "timestamp", pair, id);
