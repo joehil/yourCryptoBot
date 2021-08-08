@@ -419,12 +419,7 @@ timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 payload := url.Values{}
 payload.Add("nonce",timest)
 
-//b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
-
-//signature := getKrakenSignature("/0/private/Balance", payload, b64DecodedSecret)
-
 resp, err := client.R().
-//        SetBody(payload.Encode()).
 	SetHeader("Accept", "application/json").
 	SetHeader("Authorization", "Bearer "+apikey).
 	Get("https://api.exchange.bitpanda.com/public/v1/account/balances")
@@ -433,8 +428,6 @@ if err != nil {
 	return
 }
 
-
-fmt.Println(apikey)
 fmt.Println(resp.String())
 
 return
