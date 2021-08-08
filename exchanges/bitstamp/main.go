@@ -418,6 +418,8 @@ for _, v := range pairs {
 		return
 	}
 
+//	fmt.Println(resp.String())
+
 	err = json.Unmarshal(resp.Body(), &data)
 	if err != nil { // Handle JSON errors
         	fmt.Printf("JSON error: %v\n", err)
@@ -471,6 +473,8 @@ if err != nil {
 	fmt.Println(err)
 	return
 }
+
+//fmt.Println(resp.String())
 
 err = json.Unmarshal(resp.Body(), &orders)
 if err != nil { // Handle JSON errors

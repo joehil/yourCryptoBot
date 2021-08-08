@@ -169,12 +169,12 @@ func main() {
 /*                        if v == "getticker" {
                                 getTicker()
                                 os.Exit(0)
-                        }
+                        } */
                         if v == "getaccountinfo" {
                                 getAccount()
                                 os.Exit(0)
                         }
-                        if v == "getorders" {
+/*                        if v == "getorders" {
                                 getOrders()
                                 os.Exit(0)
                         }
@@ -419,24 +419,27 @@ timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 payload := url.Values{}
 payload.Add("nonce",timest)
 
-b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
+//b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
 
-signature := getKrakenSignature("/0/private/Balance", payload, b64DecodedSecret)
+//signature := getKrakenSignature("/0/private/Balance", payload, b64DecodedSecret)
 
 resp, err := client.R().
-        SetBody(payload.Encode()).
+//        SetBody(payload.Encode()).
 	SetHeader("Accept", "application/json").
-	SetHeader("API-Key", apikey).
-	SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
-	SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-	Post("https://api.kraken.com/0/private/Balance")
+	SetHeader("Authorization", "Bearer "+apikey).
+	Get("https://api.exchange.bitpanda.com/public/v1/account/balances")
 if err != nil {
 	fmt.Println(err)
 	return
 }
 
-//fmt.Println(resp.String())
+
+fmt.Println(apikey)
+fmt.Println(resp.String())
+
+return
+
+
 
 err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors
