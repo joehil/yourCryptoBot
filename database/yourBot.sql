@@ -64,7 +64,7 @@ CREATE UNIQUE INDEX yourlimits_exchange_idx ON public.yourlimits USING btree (ex
 
 CREATE TABLE public.yourorder (
 	exchange varchar(30) NOT NULL,
-	id varchar(20) NOT NULL,
+	id varchar(255) NOT NULL,
 	pair varchar(30) NOT NULL,
 	asset varchar(10) NOT NULL,
 	price float8 NOT NULL,
