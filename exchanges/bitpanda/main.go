@@ -186,11 +186,11 @@ func main() {
 				submitOrder()
                                 os.Exit(0)
                         }
-/*                        if v == "cancelorder" {
+                        if v == "cancelorder" {
                                 cancelOrder()
                                 os.Exit(0)
                         }
-                        if v == "gettransactions" {
+/*                        if v == "gettransactions" {
                                 getTransactions()
                                 os.Exit(0)
                         } */
@@ -622,26 +622,10 @@ var out string
 // Create a Resty Client
 client := resty.New()
 
-pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
-
-timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-
-payload := url.Values{}
-payload.Add("nonce",timest)
-payload.Add("txid",oFlag)
-
-b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
-
-signature := getKrakenSignature("/0/private/CancelOrder", payload, b64DecodedSecret)
-
-resp, err := client.R().
-        SetBody(payload.Encode()).
+_, err := client.R().
 	SetHeader("Accept", "application/json").
-	SetHeader("API-Key", apikey).
-	SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
-	SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-	Post("https://api.kraken.com/0/private/CancelOrder")
+	SetHeader("Authorization", "Bearer "+apikey).
+	Delete("https://api.exchange.bitpanda.com/public/v1/account/orders/"+oFlag)
 if err != nil {
 	fmt.Println(err)
 	return
@@ -649,18 +633,10 @@ if err != nil {
 
 //fmt.Println(resp.String())
 
-pos := strings.Index(resp.String(), "Invalid order")
-
 out = "{\n"
-
-if pos < 5 {
-       	out += "   \"id\": \""+oFlag+"\",\n"
-       	out += "   \"status\": \"success\",\n"
-} else {
-        out += "   \"status\": \"failed\",\n"
-}
+out += "   \"id\": \""+oFlag+"\",\n"
+out += "   \"status\": \"success\",\n"
 out += "   \"exchange\": \""+exchange_name+"\"\n"
-
 out += "}"
  
 fmt.Println(out) 
