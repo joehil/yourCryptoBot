@@ -409,7 +409,6 @@ if pos < 10 {
 
 func getAccount() {
 var data map[string]interface{}
-var accounts map[string]interface{}
 
 // Create a Resty Client
 client := resty.New()
@@ -428,11 +427,7 @@ if err != nil {
 	return
 }
 
-fmt.Println(resp.String())
-
-return
-
-
+//fmt.Println(resp.String())
 
 err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors
@@ -441,11 +436,16 @@ if err != nil { // Handle JSON errors
         return
 }
 
-accounts = data["result"].(map[string]interface{})
+balances := data["balances"].([]interface{})
 
-for key, account := range accounts {
-	fmt.Printf("\"currency\": \"%s\",\n",key)
-        fmt.Printf("\"total_value\": %s,\n",account)
+//fmt.Println(balances)
+
+for _,balance := range balances {
+	bala := balance.(map[string]interface{})
+	curr := bala["currency_code"].(string)
+	amount := bala["available"].(string)
+	fmt.Printf("\"currency\": \"%s\",\n",curr)
+        fmt.Printf("\"total_value\": %s,\n",amount)
 }
 
 }
