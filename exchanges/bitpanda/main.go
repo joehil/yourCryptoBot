@@ -182,11 +182,11 @@ func main() {
                                 getOrder()
                                 os.Exit(0)
                         }
-/*                        if v == "submitorder" {
-                                submitOrder()
+                        if v == "submitorder" {
+				submitOrder()
                                 os.Exit(0)
                         }
-                        if v == "cancelorder" {
+/*                        if v == "cancelorder" {
                                 cancelOrder()
                                 os.Exit(0)
                         }
@@ -451,8 +451,11 @@ var out string
 
 client := resty.New()
 
+pFlag = strings.ReplaceAll(pFlag,"-","_")
+
 payload := url.Values{}
 payload.Add("instrument_code",pFlag)
+payload.Add("with_just_orders","true")
 
 resp, err := client.R().
         SetBody(payload.Encode()).
@@ -492,23 +495,24 @@ for _, order := range orderhist {
 	tmtime,_ := time.Parse("2006-01-02T15:04:05.999999Z",tim)
 	pair := or["instrument_code"].(string)
         base := strings.ReplaceAll(pair, "_EUR", "")
-        pair = base + "-EUR"
 
-        out += "   {\n"
-        out += "   \"exchange\": \""+exchange_name+"\",\n"
-        out += "   \"id\": \""+id+"\",\n"
-        out += "   \"base_currency\": \""+base+"\",\n"
-        out += "   \"quote_currency\": \"EUR\",\n"
-        out += "   \"asset_type\": \"SPOT\",\n"
-        out += "   \"order_side\": \""+side+"\",\n"
-        out += "   \"order_type\": \""+typ+"\",\n"
-        out += "   \"creation_time\": "+fmt.Sprintf("%d",tmtime.Unix())+",\n"
-        out += "   \"update_time\": "+fmt.Sprintf("%d",tmtime.Unix())+",\n"
-        out += "   \"status\": \"NEW\",\n"
-        out += "   \"price\": "+price+",\n"
-        out += "   \"amount\": "+amount+",\n"
-        out += "   \"open_volume\": "+amount+"\n"
-        out += "   }\n"
+	if pair == pFlag { 
+        	out += "   {\n"
+        	out += "   \"exchange\": \""+exchange_name+"\",\n"
+        	out += "   \"id\": \""+id+"\",\n"
+        	out += "   \"base_currency\": \""+base+"\",\n"
+        	out += "   \"quote_currency\": \"EUR\",\n"
+        	out += "   \"asset_type\": \"SPOT\",\n"
+        	out += "   \"order_side\": \""+side+"\",\n"
+        	out += "   \"order_type\": \""+typ+"\",\n"
+        	out += "   \"creation_time\": "+fmt.Sprintf("%d",tmtime.Unix())+",\n"
+        	out += "   \"update_time\": "+fmt.Sprintf("%d",tmtime.Unix())+",\n"
+        	out += "   \"status\": \"NEW\",\n"
+        	out += "   \"price\": "+price+",\n"
+        	out += "   \"amount\": "+amount+",\n"
+        	out += "   \"open_volume\": "+amount+"\n"
+        	out += "   }\n"
+	}
 }
 out += " ]\n"
 out += "}\n"
@@ -564,34 +568,28 @@ fmt.Println(out)
 }
 
 func submitOrder(){
+var order map[string]interface{}
 // Create a Resty Client
 client := resty.New()
 
-pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
-sFlag = strings.ToLower(sFlag)
+pFlag = strings.ReplaceAll(pFlag,"-","_")
 
-timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
+payload := `{
+"instrument_code": "`+pFlag+`",
+"side": "`+sFlag+`",
+"type": "`+tFlag+`",
+"amount": "`+aFlag+`",
+"price": "`+prFlag+`"
+}`
 
-payload := url.Values{}
-payload.Add("nonce",timest)
-payload.Add("pair",pFlag)
-payload.Add("type",strings.ToLower(sFlag))
-payload.Add("ordertype",strings.ToLower(tFlag))
-payload.Add("price",prFlag)
-payload.Add("volume",aFlag)
-
-b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
-
-signature := getKrakenSignature("/0/private/AddOrder", payload, b64DecodedSecret)
+//fmt.Println(payload)
 
 resp, err := client.R().
-        SetBody(payload.Encode()).
+        SetBody(payload).
 	SetHeader("Accept", "application/json").
-	SetHeader("API-Key", apikey).
-	SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
-	SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-	Post("https://api.kraken.com/0/private/AddOrder")
+	SetHeader("Authorization", "Bearer "+apikey).
+	SetHeader("Content-Type", "application/json").
+	Post("https://api.exchange.bitpanda.com/public/v1/account/orders")
 if err != nil {
 	fmt.Println(err)
 	return
@@ -599,15 +597,21 @@ if err != nil {
 
 //fmt.Println(resp.String())
 
-pos := strings.Index(resp.String(), "txid") + 8
-if pos < 10 {
-	fmt.Println("{\"status\": \"invalid\",\n")
-        fmt.Println("\"message\": \""+resp.String()+"\"}")
+err = json.Unmarshal(resp.Body(), &order)
+if err != nil { // Handle JSON errors
+       	fmt.Printf("JSON error: %v\n", err)
+       	fmt.Printf("JSON input: %v\n", resp.Body())
+       	return
+}
+
+//fmt.Println(order)
+
+if order["order_id"] != nil {
+	id := order["order_id"].(string)
+	fmt.Println("{\"id\": \""+id+"\"}")
 } else {
-	statstr := string(resp.String()[pos:pos+19])
-	idarr := strings.Fields(statstr)
-	id := idarr[0]
-        fmt.Println("{\"id\": \""+id+"\"}")
+	fmt.Println("{\"status\": \"invalid\",")
+	fmt.Println("\"message\": \""+resp.String()+"\"}")
 }
 
 }
