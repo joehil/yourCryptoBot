@@ -174,11 +174,11 @@ func main() {
                                 getAccount()
                                 os.Exit(0)
                         }
-/*                        if v == "getorders" {
+                        if v == "getorders" {
                                 getOrders()
                                 os.Exit(0)
                         }
-                        if v == "getorder" {
+/*                        if v == "getorder" {
                                 getOrder()
                                 os.Exit(0)
                         }
@@ -413,11 +413,6 @@ var data map[string]interface{}
 // Create a Resty Client
 client := resty.New()
 
-timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-
-payload := url.Values{}
-payload.Add("nonce",timest)
-
 resp, err := client.R().
 	SetHeader("Accept", "application/json").
 	SetHeader("Authorization", "Bearer "+apikey).
@@ -452,40 +447,21 @@ for _,balance := range balances {
 
 func getOrders() {
 var orders map[string]interface{}
-var result map[string]interface{}
-var price string
-var amount string
 var out string
-var pair string
-var typ string
-var order_side string
-var tim time.Time = time.Now()
 
-// Create a Resty Client
 client := resty.New()
 
-//currencies := strings.Split(pFlag, "-")
-
-timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-
 payload := url.Values{}
-payload.Add("nonce",timest)
-
-b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
-
-signature := getKrakenSignature("/0/private/OpenOrders", payload, b64DecodedSecret)
+payload.Add("instrument_code",pFlag)
 
 resp, err := client.R().
         SetBody(payload.Encode()).
-        SetHeader("Accept", "application/json").
-        SetHeader("API-Key", apikey).
-        SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
-        SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-        Post("https://api.kraken.com/0/private/OpenOrders")
+	SetHeader("Accept", "application/json").
+	SetHeader("Authorization", "Bearer "+apikey).
+	Get("https://api.exchange.bitpanda.com/public/v1/account/orders")
 if err != nil {
-        fmt.Println(err)
-        return
+	fmt.Println(err)
+	return
 }
 
 //fmt.Println(resp.String())
@@ -497,46 +473,43 @@ if err != nil { // Handle JSON errors
        	return
 }
 
-result = orders["result"].(map[string]interface{})
-result = result["open"].(map[string]interface{})
+orderhist := orders["order_history"].([]interface{})
+
+//fmt.Println(orderhist)
 
 out = "{\n"
 out += " \"orders\": [\n"
 
-for key, order := range result {
-	var ord map[string]interface{}
-	var desc map[string]interface{}
-	ord = order.(map[string]interface{})
-	desc = ord["descr"].(map[string]interface{})
-	pair = desc["pair"].(string)
+for _, order := range orderhist {
+	ord := order.(map[string]interface{})
+	or := ord["order"].(map[string]interface{})
+	amount := or["amount"].(string)
+        price := or["price"].(string)
+        typ := or["type"].(string)
+        side := or["side"].(string)
+	id := or["order_id"].(string)
+        tim := or["time"].(string)
+	tmtime,_ := time.Parse("2006-01-02T15:04:05.999999Z",tim)
+	pair := or["instrument_code"].(string)
+        base := strings.ReplaceAll(pair, "_EUR", "")
+        pair = base + "-EUR"
 
-	base := strings.ReplaceAll(pair, "EUR", "")
-	pair = base + "-EUR"
-
-	price = desc["price"].(string)
-	amount = desc["order"].(string)
-	amnts := strings.Split(amount, " ") 
-	order_side = strings.ToUpper(desc["type"].(string))
-        typ = strings.ToUpper(desc["ordertype"].(string))
-	if pair == pFlag {
-        	out += "   {\n"
-        	out += "   \"exchange\": \""+exchange_name+"\",\n"
-        	out += "   \"id\": \""+key+"\",\n"
-        	out += "   \"base_currency\": \""+base+"\",\n"
-        	out += "   \"quote_currency\": \"EUR\",\n"
-        	out += "   \"asset_type\": \"SPOT\",\n"
-        	out += "   \"order_side\": \""+order_side+"\",\n"
-        	out += "   \"order_type\": \""+typ+"\",\n"
-        	out += "   \"creation_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
-        	out += "   \"update_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
-        	out += "   \"status\": \"NEW\",\n"
-        	out += "   \"price\": "+price+",\n"
-        	out += "   \"amount\": "+amnts[1]+",\n"
-        	out += "   \"open_volume\": "+amnts[1]+"\n"
-        	out += "   }\n"
-	}
+        out += "   {\n"
+        out += "   \"exchange\": \""+exchange_name+"\",\n"
+        out += "   \"id\": \""+id+"\",\n"
+        out += "   \"base_currency\": \""+base+"\",\n"
+        out += "   \"quote_currency\": \"EUR\",\n"
+        out += "   \"asset_type\": \"SPOT\",\n"
+        out += "   \"order_side\": \""+side+"\",\n"
+        out += "   \"order_type\": \""+typ+"\",\n"
+        out += "   \"creation_time\": "+fmt.Sprintf("%d",tmtime.Unix())+",\n"
+        out += "   \"update_time\": "+fmt.Sprintf("%d",tmtime.Unix())+",\n"
+        out += "   \"status\": \"NEW\",\n"
+        out += "   \"price\": "+price+",\n"
+        out += "   \"amount\": "+amount+",\n"
+        out += "   \"open_volume\": "+amount+"\n"
+        out += "   }\n"
 }
-
 out += " ]\n"
 out += "}\n"
  
