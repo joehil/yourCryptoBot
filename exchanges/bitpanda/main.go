@@ -166,10 +166,10 @@ func main() {
 				getCandles()
 				os.Exit(0)
     			}
-/*                        if v == "getticker" {
+                        if v == "getticker" {
                                 getTicker()
                                 os.Exit(0)
-                        } */
+                        } 
                         if v == "getaccountinfo" {
                                 getAccount()
                                 os.Exit(0)
@@ -357,8 +357,8 @@ for _, cn := range data {
        	        close = cndl["close"].(string)
                 volume = cndl["volume"].(string)
 		tm := cndl["time"].(string)
-		tm = strings.ReplaceAll(tm,"T"," ")
-                tm = strings.ReplaceAll(tm,".999Z"," UTC")
+                tm = strings.ReplaceAll(tm,"T"," ")
+		tm = tm[0:17] + "59 UTC"
 		out += "  {\n"
 		out += "   \"time\": \""+tm+"\",\n"
                 out += "   \"low\": "+low+",\n"
@@ -378,15 +378,15 @@ fmt.Print(out)
 }
 
 func getTicker() {
-pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
+var ticker map[string]interface{}
+pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", "_"))
 
 // Create a Resty Client
 client := resty.New()
 
 resp, err := client.R().
-      SetQueryString("pair="+pFlag).
       SetHeader("Accept", "application/json").
-      Get("https://api.kraken.com/0/public/Ticker")
+      Get("https://api.exchange.bitpanda.com/public/v1/market-ticker/"+pFlag)
 
 if err != nil {
 	fmt.Println(err)
@@ -394,15 +394,20 @@ if err != nil {
 }
 
 //fmt.Println(resp.String())
-pos := strings.Index(resp.String(), "\"c\":[\"") + 6
-if pos < 10 {
+
+err = json.Unmarshal(resp.Body(), &ticker)
+if err != nil { // Handle JSON errors
+       	fmt.Printf("JSON error: %v\n", err)
+       	fmt.Printf("JSON input: %v\n", resp.Body())
+       	return
+}
+
+if ticker["last_price"] != nil {
+	price := ticker["last_price"].(string)
+        fmt.Println("{\"last\": "+price+",\n\"exchange\": \""+exchange_name+"\"}")
+} else {
 	fmt.Println("{\"status\": \"invalid\",\n")
         fmt.Println("\"message\": \""+resp.String()+"\"}")
-} else {
-	laststr := string(resp.String()[pos:pos+19])
-	lastarr := strings.Split(laststr,"\"")
-	last := lastarr[0]
-        fmt.Println("{\"last\": "+last+",\n\"exchange\": \""+exchange_name+"\"}")
 }
 
 }
