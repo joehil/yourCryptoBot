@@ -178,11 +178,11 @@ func main() {
                                 getOrders()
                                 os.Exit(0)
                         }
-/*                        if v == "getorder" {
+                        if v == "getorder" {
                                 getOrder()
                                 os.Exit(0)
                         }
-                        if v == "submitorder" {
+/*                        if v == "submitorder" {
                                 submitOrder()
                                 os.Exit(0)
                         }
@@ -518,38 +518,18 @@ fmt.Println(out)
 
 func getOrder() {
 var order map[string]interface{}
-var result map[string]interface{}
 var status string = "invalid"
 var out string
 
-// Create a Resty Client
 client := resty.New()
 
-//currencies := strings.Split(pFlag, "-")
-
-pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
-
-timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-
-payload := url.Values{}
-payload.Add("nonce",timest)
-payload.Add("txid",oFlag)
-
-b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
-
-signature := getKrakenSignature("/0/private/QueryOrders", payload, b64DecodedSecret)
-
 resp, err := client.R().
-        SetBody(payload.Encode()).
-        SetHeader("Accept", "application/json").
-        SetHeader("API-Key", apikey).
-        SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
-        SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-        Post("https://api.kraken.com/0/private/QueryOrders")
+	SetHeader("Accept", "application/json").
+	SetHeader("Authorization", "Bearer "+apikey).
+	Get("https://api.exchange.bitpanda.com/public/v1/account/orders/"+oFlag)
 if err != nil {
-        fmt.Println(err)
-        return
+	fmt.Println(err)
+	return
 }
 
 //fmt.Println(resp.String())
@@ -561,14 +541,11 @@ if err != nil { // Handle JSON errors
        	return
 }
 
-if order["result"] != nil {
-	result = order["result"].(map[string]interface{})
-	rstr := fmt.Sprintf("Map: %v", result)
-	pos := strings.Index(rstr, "status:") + 7
-	statstr := string(rstr[pos:pos+20])
-	statarr := strings.Fields(statstr)
-	status = statarr[0]
-}
+//fmt.Println(order)
+
+ord := order["order"].(map[string]interface{})
+
+status = ord["status"].(string)
 
 out = "{\n"
 
