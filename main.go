@@ -1585,11 +1585,11 @@ func processOrders() {
 
 			storeOrder(o.exchange,o.id,o.base_currency+"-"+o.quote_currency,o.asset,o.order_side,o.order_type,o.update_time,o.status,o.price,o.amount)
 
-			if (o.status == "FILLED" || o.status == "CLOSED" || o.status == "FINISHED") && o.order_side == "BUY" {
+			if (o.status == "FILLED" || o.status == "FILLED_FULLY" || o.status == "CLOSED" || o.status == "FINISHED") && o.order_side == "BUY" {
 				insertPositions(o.exchange,o.base_currency+"-"+o.quote_currency,o.order_side,time.Unix(int64(o.update_time), 0),o.price,o.amount)
                         	submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" bought")
 			}
-                        if (o.status == "FILLED" || o.status == "CLOSED" || o.status == "FINISHED") && o.order_side == "SELL" {
+                        if (o.status == "FILLED" || o.status == "FILLED_FULLY" || o.status == "CLOSED" || o.status == "FINISHED") && o.order_side == "SELL" {
 				deletePositions(o.exchange, o.base_currency+"-"+o.quote_currency)
                                 submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" sold")
                         }
