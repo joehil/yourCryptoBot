@@ -555,6 +555,11 @@ if err != nil { // Handle JSON errors
 ord := order["order"].(map[string]interface{})
 
 status = ord["status"].(string)
+filled_amount := ord["filled_amount"].(string)
+
+if filled_amount == "0.0" {
+	status = "CANCELED"
+}
 
 out = "{\n"
 
