@@ -68,6 +68,7 @@ var minwin int
 var useticker bool = false
 var bullstrategy bool = false
 var bullwin int
+var bulltrend float64 = 1
 
 var amountcomma map[string]string
 var pricecomma map[string]string
@@ -917,7 +918,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
         	} 
 	}
 
-        if (current > limit) && (limit > 0) && (bullstrategy == true) && (trend1 > 0.8) && (trend2 > 0.8) &&(trend3 > 0.8) && (lastcandle > 0) && isEnoughMoney() {
+        if (current > limit) && (limit > 0) && (bullstrategy == true) && (trend1 > bulltrend) && (trend2 > bulltrend) && (lastcandle > 0) && isEnoughMoney() {
 		fmt.Println("use bull strategy")
 		price = current * 1.005
 		amount = float64(invest_amount)/price
@@ -1126,6 +1127,24 @@ func sendTelegram(){
                                                 mess = "command failed"
                                         }
                                 }
+                                if  argParts[0] == "Bulltrend" {
+                                        var passcode string
+                                        period, err := strconv.ParseFloat(argParts[1],64)
+                                        if len(argParts) > 2 {
+                                        passcode = argParts[2]
+                                        } else {
+                                                passcode = ""
+                                        }
+                                        valid := totp.Validate(passcode, key_secret)
+                                        if err == nil && valid {
+                                                fmt.Println(period)
+                                                deleteParms("bulltrend")
+                                                insertParms("bulltrend", 0, float64(period), "", time.Now(), time.Now(), time.Now())
+                                                mess = "command successful"
+                                        } else {
+                                                mess = "command failed"
+                                        }
+                                }
                                 if  argParts[0] == "Stoptrade" {
                                         var passcode string
                                         if len(argParts) > 1 {
@@ -1136,6 +1155,21 @@ func sendTelegram(){
         				valid := totp.Validate(passcode, key_secret)
                                         if valid {
                                                 deleteParms("DoTrade")
+                                                mess = "command successful"
+                                        } else {
+                                                mess = "command failed"
+                                        }
+                                }
+                                if  argParts[0] == "Nobull" {
+                                        var passcode string
+                                        if len(argParts) > 1 {
+                                        passcode = argParts[1]
+                                        } else {
+                                                passcode = ""
+                                        }
+                                        valid := totp.Validate(passcode, key_secret)
+                                        if valid {
+				                insertParms("nobull", 1, 0, "", time.Now(), time.Now(), time.Now())
                                                 mess = "command successful"
                                         } else {
                                                 mess = "command failed"
@@ -1194,8 +1228,21 @@ func read_config() {
 	useticker = viper.GetBool("useticker")
         bullstrategy = viper.GetBool("bullstrategy")
         bullwin = viper.GetInt("bullwin")
+        bulltrend = viper.GetFloat64("bulltrend")
 
-        parm,err := getParms("limit_depth")
+	parm,err := getParms("nobull")
+        if err == nil {
+		if parm.intp == 1 {
+			bullstrategy = false
+		}
+        }
+
+        parm,err = getParms("bulltrend")
+        if err == nil {
+                bulltrend = float64(parm.floatp)
+        }
+
+        parm,err = getParms("limit_depth")
         if err == nil {
                 limit_depth = int(parm.intp)
         }
@@ -1215,6 +1262,7 @@ func read_config() {
                 fmt.Printf("limit_depth: %d\n",limit_depth)
                 fmt.Printf("invest_amount: %d\n",invest_amount)
                 fmt.Printf("minwin: %d\n",minwin)
+                fmt.Printf("bulltrend: %f\n",bulltrend)
 		fmt.Println(amountcomma)
                 fmt.Println(pricecomma)
 		for i, v := range pairs {
