@@ -66,6 +66,8 @@ var limit_depth int
 var invest_amount int
 var minwin int
 var useticker bool = false
+var bullstrategy bool = false
+var bullwin int
 
 var amountcomma map[string]string
 var pricecomma map[string]string
@@ -850,6 +852,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 	var trend1 float64
         var trend2 float64
         var trend3 float64
+	var lastcandle float64
 
 	price = 0
 	amount = 0
@@ -863,7 +866,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
         defer db.Close()
 
         sqlStatement := `
-        select l.limitbuy, l.current, l.min, l.potwin, l.trend1, l.trend2, l.trend3 from yourlimits l 
+        select l.limitbuy, l.current, l.min, l.potwin, l.trend1, l.trend2, l.trend3, l.lastcandle from yourlimits l 
         where l.pair = $1
 	AND LOWER(l.exchange) = $2
         and l.pair not in
@@ -881,12 +884,12 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 	)
         );`
 
-        err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&min,&potwin,&trend1,&trend2,&trend3)
+        err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&min,&potwin,&trend1,&trend2,&trend3,&lastcandle)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
 
-	fmt.Printf("C: %f, L: %f, M: %f, P: %f, T1: %f, T2: %f, T3: %f\n",current,limit,min,potwin,trend1,trend2,trend3)
+	fmt.Printf("C: %f, L: %f, M: %f, P: %f, T1: %f, T2: %f, T3: %f, LC: %f\n",current,limit,min,potwin,trend1,trend2,trend3,lastcandle)
 
 	if (current < limit) && (potwin > float64(minwin) + 1) && isEnoughMoney() {
 		var dobuy bool = false
@@ -912,6 +915,12 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 			amount = float64(invest_amount)/price
                 	fmt.Printf("Price: %f\n",limit)
         	} 
+	}
+
+        if (current > limit) && (limit > 0) && (bullstrategy == true) && (trend1 > 1) && (trend1 > 2) &&(trend1 > 3) && (lastcandle > 0) && isEnoughMoney() {
+		fmt.Println("use bull strategy")
+		price = current * 1.005
+		amount = float64(invest_amount)/price
 	}
 
 	fmt.Printf("A: %f, P: %f\n",amount,price)
@@ -957,6 +966,10 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
         }
 
 	winrate = rate * ((100 + float64(minwin)) / 100)
+
+	if bullstrategy == true {
+		winrate = rate * ((100 + float64(bullwin)) / 100)
+	}
 
 	fmt.Printf("C: %f, L: %f, M: %f, R: %f, T1: %f, T2: %f, T3: %f\n",current,limit,max,winrate,trend1,trend2,trend3)
 
@@ -1179,6 +1192,8 @@ func read_config() {
         minwin = viper.GetInt("minwin")
 
 	useticker = viper.GetBool("useticker")
+        bullstrategy = viper.GetBool("bullstrategy")
+        bullwin = viper.GetInt("bullwin")
 
         parm,err := getParms("limit_depth")
         if err == nil {
