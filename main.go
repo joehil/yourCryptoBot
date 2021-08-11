@@ -917,7 +917,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
         	} 
 	}
 
-        if (current > limit) && (limit > 0) && (bullstrategy == true) && (trend1 > 1) && (trend1 > 2) &&(trend1 > 3) && (lastcandle > 0) && isEnoughMoney() {
+        if (current > limit) && (limit > 0) && (bullstrategy == true) && (trend1 > 0.8) && (trend2 > 0.8) &&(trend3 > 0.8) && (lastcandle > 0) && isEnoughMoney() {
 		fmt.Println("use bull strategy")
 		price = current * 1.005
 		amount = float64(invest_amount)/price
