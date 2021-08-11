@@ -2024,10 +2024,14 @@ func activatePosition(pair string) {
 	AND notrade = false
 	AND LOWER(exchange) = $1)
 	and notrade = false
-	and rate < 
+	and (rate < 
 	(select limitsell from yourlimits l
 	where LOWER(l.exchange) = $1
 	and l.pair = $2)
+	or rate < 
+        (select current from yourlimits l
+        where LOWER(l.exchange) = 'bitstamp'
+        and l.pair = 'XRP-EUR'))
 	order by rate desc
 	limit 1);`
         _, err = db.Exec(sqlStatement,exchange_name,pair)
