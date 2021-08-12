@@ -1650,11 +1650,11 @@ func processOrders() {
 
 			if (o.status == "FILLED" || o.status == "FILLED_FULLY" || o.status == "CLOSED" || o.status == "FINISHED") && o.order_side == "BUY" {
 				insertPositions(o.exchange,o.base_currency+"-"+o.quote_currency,o.order_side,time.Unix(int64(o.update_time), 0),o.price,o.amount)
-                        	submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" bought")
+                        	submitTelegram(exchange_name+": position: "+o.base_currency+"-"+o.quote_currency+" bought")
 			}
                         if (o.status == "FILLED" || o.status == "FILLED_FULLY" || o.status == "CLOSED" || o.status == "FINISHED") && o.order_side == "SELL" {
 				deletePositions(o.exchange, o.base_currency+"-"+o.quote_currency)
-                                submitTelegram("Position: "+o.base_currency+"-"+o.quote_currency+" sold")
+                                submitTelegram(exchange_name+": position: "+o.base_currency+"-"+o.quote_currency+" sold")
                         }
 		}
         }
@@ -2099,12 +2099,12 @@ func runTicker(pair string, side string, limitstr string, currentstr string, amo
 			if side == "BUY" && last > level {
 				amount := float64(invest_amount)/limit
                                 _ = submitOrder(pair,"BUY","LIMIT",amount,limit,"ticker")
-				submitTelegram(fmt.Sprintf("Ticker ordered %f %s at %f\n",amount,pair,limit))
+				submitTelegram(fmt.Sprintf(exchange_name+": ticker ordered %f %s at %f\n",amount,pair,limit))
 				done = true
 			}
                         if side == "SELL" && last < level {
                                 _ = submitOrder(pair,"SELL","LIMIT",amount,limit,"ticker")
-                                submitTelegram(fmt.Sprintf("Ticker offered %f %s at %f\n",amount,pair,limit))
+                                submitTelegram(fmt.Sprintf(exchange_name+": ticker offered %f %s at %f\n",amount,pair,limit))
 				done = true
                         }
 		} 
