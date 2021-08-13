@@ -174,7 +174,7 @@ func main() {
                                 getAccount()
                                 os.Exit(0)
                         }
-/*                        if v == "getorders" {
+                        if v == "getorders" {
                                 getOrders()
                                 os.Exit(0)
                         }
@@ -182,7 +182,7 @@ func main() {
                                 getOrder()
                                 os.Exit(0)
                         }
-                        if v == "submitorder" {
+/*                        if v == "submitorder" {
                                 submitOrder()
                                 os.Exit(0)
                         }
@@ -466,40 +466,33 @@ for key, account := range data {
 }
 
 func getOrders() {
-var orders map[string]interface{}
-var result map[string]interface{}
-var price string
-var amount string
+var orders []interface{}
 var out string
-var pair string
-var typ string
 var order_side string
-var tim time.Time = time.Now()
+
+currencies := strings.Split(pFlag, "-")
 
 // Create a Resty Client
 client := resty.New()
 
-//currencies := strings.Split(pFlag, "-")
-
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-
-payload := url.Values{}
-payload.Add("nonce",timest)
 
 signature := getSignature(timest)
 
+payload := `
+{
+  "key": "`+apikey+`",
+  "signature": "`+signature+`",
+  "nonce": "`+timest+`"
+}`
+
+//fmt.Println(payload)
+
 resp, err := client.R().
-        SetBody(payload.Encode()).
-        SetHeader("Accept", "application/json").
-        SetHeader("API-Key", apikey).
-        SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
-        SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-        Post("https://api.kraken.com/0/private/OpenOrders")
-if err != nil {
-        fmt.Println(err)
-        return
-}
+        SetBody(payload).
+	SetHeader("Accept", "application/json").
+	SetHeader("Content-Type", "application/json").
+	Post("https://cex.io/api/open_orders/"+currencies[0]+"/"+currencies[1])
 
 //fmt.Println(resp.String())
 
@@ -510,44 +503,38 @@ if err != nil { // Handle JSON errors
        	return
 }
 
-result = orders["result"].(map[string]interface{})
-result = result["open"].(map[string]interface{})
+//fmt.Println(orders)
 
 out = "{\n"
 out += " \"orders\": [\n"
 
-for key, order := range result {
+for _, order := range orders {
 	var ord map[string]interface{}
-	var desc map[string]interface{}
 	ord = order.(map[string]interface{})
-	desc = ord["descr"].(map[string]interface{})
-	pair = desc["pair"].(string)
+	id := ord["id"].(string)
+	base := currencies[0]
+	quote := currencies[1]
 
-	base := strings.ReplaceAll(pair, "EUR", "")
-	pair = base + "-EUR"
-
-	price = desc["price"].(string)
-	amount = desc["order"].(string)
-	amnts := strings.Split(amount, " ") 
-	order_side = strings.ToUpper(desc["type"].(string))
-        typ = strings.ToUpper(desc["ordertype"].(string))
-	if pair == pFlag {
-        	out += "   {\n"
-        	out += "   \"exchange\": \""+exchange_name+"\",\n"
-        	out += "   \"id\": \""+key+"\",\n"
-        	out += "   \"base_currency\": \""+base+"\",\n"
-        	out += "   \"quote_currency\": \"EUR\",\n"
-        	out += "   \"asset_type\": \"SPOT\",\n"
-        	out += "   \"order_side\": \""+order_side+"\",\n"
-        	out += "   \"order_type\": \""+typ+"\",\n"
-        	out += "   \"creation_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
-        	out += "   \"update_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
-        	out += "   \"status\": \"NEW\",\n"
-        	out += "   \"price\": "+price+",\n"
-        	out += "   \"amount\": "+amnts[1]+",\n"
-        	out += "   \"open_volume\": "+amnts[1]+"\n"
-        	out += "   }\n"
-	}
+	price := ord["price"].(string)
+	amount := ord["amount"].(string)
+	pending := ord["pending"].(string) 
+        tmst := ord["time"].(string)
+	order_side = strings.ToUpper(ord["type"].(string))
+       	out += "   {\n"
+       	out += "   \"exchange\": \""+exchange_name+"\",\n"
+       	out += "   \"id\": \""+id+"\",\n"
+       	out += "   \"base_currency\": \""+base+"\",\n"
+       	out += "   \"quote_currency\": \""+quote+"\",\n"
+       	out += "   \"asset_type\": \"SPOT\",\n"
+       	out += "   \"order_side\": \""+order_side+"\",\n"
+       	out += "   \"order_type\": \"LIMIT\",\n"
+       	out += "   \"creation_time\": "+tmst[0:10]+",\n"
+       	out += "   \"update_time\": "+tmst[0:10]+",\n"
+       	out += "   \"status\": \"NEW\",\n"
+       	out += "   \"price\": "+price+",\n"
+       	out += "   \"amount\": "+amount+",\n"
+       	out += "   \"open_volume\": "+pending+"\n"
+       	out += "   }\n"
 }
 
 out += " ]\n"
