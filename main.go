@@ -2047,7 +2047,7 @@ func activatePositions() {
 }
 
 func deactivatePositions() {
-        fmt.Println("Dectivate position")
+        fmt.Println("Deactivate position")
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
         db, err := sql.Open("postgres", psqlconn)
