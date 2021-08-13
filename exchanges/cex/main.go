@@ -358,23 +358,26 @@ for _, tr := range data {
 tmtime := time.Unix(tmnow,0)
 
 out = "{\n"
-out += " \"exchange\": \""+exchange_name+"\",\n"
-out += " \"pair\": {\n"
-out += "  \"delimiter\": \"-\",\n"
-out += "  \"base\": \""+currencies[0]+"\",\n"
-out += "  \"quote\": \""+currencies[1]+"\"\n"
-out += " },\n"
-out += " \"interval\": \""+iFlag+"\",\n"
-out += " \"candle\": [\n"
-out += "  {\n"
-out += "   \"time\": \""+tmtime.Format(layout)+" UTC\",\n"
-out += "   \"low\": "+fmt.Sprintf("%f",low)+",\n"
-out += "   \"high\": "+fmt.Sprintf("%f",high)+",\n"
-out += "   \"open\": "+fmt.Sprintf("%f",open)+",\n"
-out += "   \"close\": "+fmt.Sprintf("%f",close)+",\n"
-out += "   \"volume\": "+fmt.Sprintf("%f",volume)+"\n"
-out += "  }\n"
-out += " ]\n"
+
+if volume > 0 {
+	out += " \"exchange\": \""+exchange_name+"\",\n"
+	out += " \"pair\": {\n"
+	out += "  \"delimiter\": \"-\",\n"
+	out += "  \"base\": \""+currencies[0]+"\",\n"
+	out += "  \"quote\": \""+currencies[1]+"\"\n"
+	out += " },\n"
+	out += " \"interval\": \""+iFlag+"\",\n"
+	out += " \"candle\": [\n"
+	out += "  {\n"
+	out += "   \"time\": \""+tmtime.Format(layout)+" UTC\",\n"
+	out += "   \"low\": "+fmt.Sprintf("%f",low)+",\n"
+	out += "   \"high\": "+fmt.Sprintf("%f",high)+",\n"
+	out += "   \"open\": "+fmt.Sprintf("%f",open)+",\n"
+	out += "   \"close\": "+fmt.Sprintf("%f",close)+",\n"
+	out += "   \"volume\": "+fmt.Sprintf("%f",volume)+"\n"
+	out += "  }\n"
+	out += " ]\n"
+}
 out += "}\n"
 
 fmt.Print(out)
