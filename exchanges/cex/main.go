@@ -545,37 +545,31 @@ fmt.Println(out)
 
 func getOrder() {
 var order map[string]interface{}
-var result map[string]interface{}
 var status string = "invalid"
 var out string
 
 // Create a Resty Client
 client := resty.New()
 
-//currencies := strings.Split(pFlag, "-")
-
-pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
-
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-
-payload := url.Values{}
-payload.Add("nonce",timest)
-payload.Add("txid",oFlag)
 
 signature := getSignature(timest)
 
+payload := `
+{
+  "key": "`+apikey+`",
+  "signature": "`+signature+`",
+  "nonce": "`+timest+`",
+  "id": `+oFlag+`
+}`
+
+//fmt.Println(payload)
+
 resp, err := client.R().
-        SetBody(payload.Encode()).
-        SetHeader("Accept", "application/json").
-        SetHeader("API-Key", apikey).
-        SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
-        SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-        Post("https://api.kraken.com/0/private/QueryOrders")
-if err != nil {
-        fmt.Println(err)
-        return
-}
+        SetBody(payload).
+	SetHeader("Accept", "application/json").
+	SetHeader("Content-Type", "application/json").
+	Post("https://cex.io/api/get_order/")
 
 //fmt.Println(resp.String())
 
@@ -586,14 +580,22 @@ if err != nil { // Handle JSON errors
        	return
 }
 
-if order["result"] != nil {
-	result = order["result"].(map[string]interface{})
-	rstr := fmt.Sprintf("Map: %v", result)
-	pos := strings.Index(rstr, "status:") + 7
-	statstr := string(rstr[pos:pos+20])
-	statarr := strings.Fields(statstr)
-	status = statarr[0]
-}
+status = order["status"].(string)
+
+switch {
+       case status == "a":
+       status = "NEW"
+       case status == "d":
+       status = "FILLED"
+       case status == "c":
+       status = "CANCELED"
+       case status == "cd":
+       status = "CANCELED"
+       default: 
+       status = "invalid"
+   }
+  
+//fmt.Println(status)
 
 out = "{\n"
 
