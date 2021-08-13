@@ -182,11 +182,11 @@ func main() {
                                 getOrder()
                                 os.Exit(0)
                         }
-/*                        if v == "submitorder" {
+                        if v == "submitorder" {
                                 submitOrder()
                                 os.Exit(0)
                         }
-                        if v == "cancelorder" {
+/*                        if v == "cancelorder" {
                                 cancelOrder()
                                 os.Exit(0)
                         }
@@ -614,48 +614,51 @@ fmt.Println(out)
 }
 
 func submitOrder(){
+var order map[string]interface{}
+currencies := strings.Split(pFlag, "-")
+
 // Create a Resty Client
 client := resty.New()
 
-pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
-sFlag = strings.ToLower(sFlag)
-
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-
-payload := url.Values{}
-payload.Add("nonce",timest)
-payload.Add("pair",pFlag)
-payload.Add("type",strings.ToLower(sFlag))
-payload.Add("ordertype",strings.ToLower(tFlag))
-payload.Add("price",prFlag)
-payload.Add("volume",aFlag)
 
 signature := getSignature(timest)
 
+payload := `
+{
+  "key": "`+apikey+`",
+  "signature": "`+signature+`",
+  "nonce": "`+timest+`",
+  "type": "`+strings.ToLower(sFlag)+`",
+  "amount": `+aFlag+`,
+  "price": `+prFlag+` 
+}`
+
+//fmt.Println(payload)
+
 resp, err := client.R().
-        SetBody(payload.Encode()).
+        SetBody(payload).
 	SetHeader("Accept", "application/json").
-	SetHeader("API-Key", apikey).
-	SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
-	SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-	Post("https://api.kraken.com/0/private/AddOrder")
-if err != nil {
-	fmt.Println(err)
-	return
-}
+	SetHeader("Content-Type", "application/json").
+	Post("https://cex.io/api/place_order/"+currencies[0]+"/"+currencies[1])
 
 //fmt.Println(resp.String())
 
-pos := strings.Index(resp.String(), "txid") + 8
-if pos < 10 {
-	fmt.Println("{\"status\": \"invalid\",\n")
-        fmt.Println("\"message\": \""+resp.String()+"\"}")
-} else {
-	statstr := string(resp.String()[pos:pos+19])
-	idarr := strings.Fields(statstr)
-	id := idarr[0]
+err = json.Unmarshal(resp.Body(), &order)
+if err != nil { // Handle JSON errors
+       	fmt.Printf("JSON error: %v\n", err)
+       	fmt.Printf("JSON input: %v\n", resp.Body())
+       	return
+}
+
+id := order["id"].(string)
+st := order["complete"].(bool)
+
+if st == false {
         fmt.Println("{\"id\": \""+id+"\"}")
+} else {
+        fmt.Println("{\"status\": \"invalid\",\n")
+        fmt.Println("\"message\": \""+resp.String()+"\"}")
 }
 
 }
