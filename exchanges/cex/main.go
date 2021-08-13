@@ -28,8 +28,7 @@ import (
   	"strconv"
 	"crypto/hmac"
 	"crypto/sha256"
-	"crypto/sha512"
-	"encoding/base64"
+//	"encoding/base64"
 	"net/url"
 /*	"syscall"
 	"bytes"
@@ -169,12 +168,12 @@ func main() {
 /*                        if v == "getticker" {
                                 getTicker()
                                 os.Exit(0)
-                        }
+                        } */
                         if v == "getaccountinfo" {
                                 getAccount()
                                 os.Exit(0)
                         }
-                        if v == "getorders" {
+/*                        if v == "getorders" {
                                 getOrders()
                                 os.Exit(0)
                         }
@@ -262,16 +261,12 @@ func read_config() {
 	}
 }
 
-func getSignature(url_path string, values url.Values, secret []byte) string {
-
-  sha := sha256.New()
-  sha.Write([]byte(values.Get("nonce") + values.Encode()))
-  shasum := sha.Sum(nil)
-
-  mac := hmac.New(sha512.New, secret)
-  mac.Write(append([]byte(url_path), shasum...))
+func getSignature(nonce string) string {
+  mac := hmac.New(sha256.New, []byte(apisecret))
+  mac.Write([]byte(nonce + apiclient + apikey))
   macsum := mac.Sum(nil)
-  return base64.StdEncoding.EncodeToString(macsum)
+  mstr := fmt.Sprintf("%x",string(macsum))
+  return strings.ToUpper(mstr)
 }
 
 func convCurr(curr string) string {
@@ -416,28 +411,28 @@ if pos < 10 {
 
 func getAccount() {
 var data map[string]interface{}
-var accounts map[string]interface{}
 
 // Create a Resty Client
 client := resty.New()
 
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
-payload := url.Values{}
-payload.Add("nonce",timest)
+signature := getSignature(timest)
 
-b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
+payload := `
+{
+  "key": "`+apikey+`",
+  "signature": "`+signature+`",
+  "nonce": "`+timest+`"
+}`
 
-signature := getSignature("/0/private/Balance", payload, b64DecodedSecret)
+//fmt.Println(payload)
 
 resp, err := client.R().
-        SetBody(payload.Encode()).
+        SetBody(payload).
 	SetHeader("Accept", "application/json").
-	SetHeader("API-Key", apikey).
-	SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
-	SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-	Post("https://api.kraken.com/0/private/Balance")
+	SetHeader("Content-Type", "application/json").
+	Post("https://cex.io/api/balance/")
 if err != nil {
 	fmt.Println(err)
 	return
@@ -452,12 +447,23 @@ if err != nil { // Handle JSON errors
         return
 }
 
-accounts = data["result"].(map[string]interface{})
+fmt.Println(data)
 
-for key, account := range accounts {
-	fmt.Printf("\"currency\": \"%s\",\n",key)
-        fmt.Printf("\"total_value\": %s,\n",account)
+for key, account := range data {
+	var acc map[string]interface{}
+	fmt.Println(key)
+        fmt.Println(account)
+	acc = account.(map[string]interface{})
+	amount := acc["available"].(string)
+	if amount[0:4] != "0.000" {
+        	fmt.Printf("\"currency\": \"%s\",\n",key)
+        	fmt.Printf("\"total_value\": %s,\n",amount)
+	}
 }
+
+
+
+return
 
 }
 
@@ -482,9 +488,7 @@ timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 payload := url.Values{}
 payload.Add("nonce",timest)
 
-b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
-
-signature := getSignature("/0/private/OpenOrders", payload, b64DecodedSecret)
+signature := getSignature(timest)
 
 resp, err := client.R().
         SetBody(payload.Encode()).
@@ -573,9 +577,7 @@ payload := url.Values{}
 payload.Add("nonce",timest)
 payload.Add("txid",oFlag)
 
-b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
-
-signature := getSignature("/0/private/QueryOrders", payload, b64DecodedSecret)
+signature := getSignature(timest)
 
 resp, err := client.R().
         SetBody(payload.Encode()).
@@ -641,9 +643,7 @@ payload.Add("ordertype",strings.ToLower(tFlag))
 payload.Add("price",prFlag)
 payload.Add("volume",aFlag)
 
-b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
-
-signature := getSignature("/0/private/AddOrder", payload, b64DecodedSecret)
+signature := getSignature(timest)
 
 resp, err := client.R().
         SetBody(payload.Encode()).
@@ -687,9 +687,7 @@ payload := url.Values{}
 payload.Add("nonce",timest)
 payload.Add("txid",oFlag)
 
-b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
-
-signature := getSignature("/0/private/CancelOrder", payload, b64DecodedSecret)
+signature := getSignature(timest)
 
 resp, err := client.R().
         SetBody(payload.Encode()).
@@ -736,9 +734,7 @@ timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 payload := url.Values{}
 payload.Add("nonce",timest)
 
-b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
-
-signature := getSignature("/0/private/TradesHistory", payload, b64DecodedSecret)
+signature := getSignature(timest)
 
 resp, err := client.R().
         SetBody(payload.Encode()).
