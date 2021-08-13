@@ -186,11 +186,11 @@ func main() {
                                 submitOrder()
                                 os.Exit(0)
                         }
-/*                        if v == "cancelorder" {
+                        if v == "cancelorder" {
                                 cancelOrder()
                                 os.Exit(0)
                         }
-                        if v == "gettransactions" {
+/*                        if v == "gettransactions" {
                                 getTransactions()
                                 os.Exit(0)
                         } */
@@ -669,38 +669,34 @@ var out string
 // Create a Resty Client
 client := resty.New()
 
-pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
-
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
-
-payload := url.Values{}
-payload.Add("nonce",timest)
-payload.Add("txid",oFlag)
 
 signature := getSignature(timest)
 
-resp, err := client.R().
-        SetBody(payload.Encode()).
+payload := `
+{
+  "key": "`+apikey+`",
+  "signature": "`+signature+`",
+  "nonce": "`+timest+`",
+  "type": "`+strings.ToLower(sFlag)+`",
+  "id": "`+oFlag+`"
+}`
+
+//fmt.Println(payload)
+
+resp, _ := client.R().
+        SetBody(payload).
 	SetHeader("Accept", "application/json").
-	SetHeader("API-Key", apikey).
-	SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
-	SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-	Post("https://api.kraken.com/0/private/CancelOrder")
-if err != nil {
-	fmt.Println(err)
-	return
-}
+	SetHeader("Content-Type", "application/json").
+	Post("https://cex.io/api/cancel_order/")
 
 //fmt.Println(resp.String())
 
-pos := strings.Index(resp.String(), "Invalid order")
-
 out = "{\n"
 
-if pos < 5 {
-       	out += "   \"id\": \""+oFlag+"\",\n"
-       	out += "   \"status\": \"success\",\n"
+if resp.String() == "true" {
+        out += "   \"id\": \""+oFlag+"\",\n"
+        out += "   \"status\": \"success\",\n"
 } else {
         out += "   \"status\": \"failed\",\n"
 }
