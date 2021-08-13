@@ -25,6 +25,7 @@ import (
 	flag "github.com/spf13/pflag"
 	"time"
 	"strings"
+	"reflect"
   	"strconv"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -447,23 +448,20 @@ if err != nil { // Handle JSON errors
         return
 }
 
-fmt.Println(data)
+//fmt.Println(data)
 
 for key, account := range data {
 	var acc map[string]interface{}
-	fmt.Println(key)
-        fmt.Println(account)
-	acc = account.(map[string]interface{})
-	amount := acc["available"].(string)
-	if amount[0:4] != "0.000" {
-        	fmt.Printf("\"currency\": \"%s\",\n",key)
-        	fmt.Printf("\"total_value\": %s,\n",amount)
+	if reflect.TypeOf(account) == reflect.TypeOf(acc) {
+		acc = account.(map[string]interface{})
+		amostr := acc["available"].(string)
+		amount,_ := strconv.ParseFloat(amostr,64)
+		if amount != 0 {
+	        	fmt.Printf("\"currency\": \"%s\",\n",key)
+        		fmt.Printf("\"total_value\": %f,\n",amount)
+		}
 	}
 }
-
-
-
-return
 
 }
 
