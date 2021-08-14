@@ -166,10 +166,10 @@ func main() {
 				getCandles()
 				os.Exit(0)
     			}
-/*                        if v == "getticker" {
+                        if v == "getticker" {
                                 getTicker()
                                 os.Exit(0)
-                        } */
+                        } 
                         if v == "getaccountinfo" {
                                 getAccount()
                                 os.Exit(0)
@@ -268,17 +268,6 @@ func getSignature(nonce string) string {
   macsum := mac.Sum(nil)
   mstr := fmt.Sprintf("%x",string(macsum))
   return strings.ToUpper(mstr)
-}
-
-func convCurr(curr string) string {
-var c string = curr
-if curr == "ETHEUR" {
-        c ="XETHZEUR"
-}
-if curr == "XRPEUR" {
-        c ="XXRPZEUR"
-}
-return c
 }
 
 func myUsage() {
@@ -384,15 +373,14 @@ fmt.Print(out)
 }
 
 func getTicker() {
-pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
+currencies := strings.Split(pFlag, "-")
 
 // Create a Resty Client
 client := resty.New()
 
 resp, err := client.R().
-      SetQueryString("pair="+pFlag).
       SetHeader("Accept", "application/json").
-      Get("https://api.kraken.com/0/public/Ticker")
+      Get("https://cex.io/api/ticker/"+currencies[0]+"/"+currencies[1])
 
 if err != nil {
 	fmt.Println(err)
@@ -400,7 +388,8 @@ if err != nil {
 }
 
 //fmt.Println(resp.String())
-pos := strings.Index(resp.String(), "\"c\":[\"") + 6
+
+pos := strings.Index(resp.String(), "\"last\":\"") + 8
 if pos < 10 {
 	fmt.Println("{\"status\": \"invalid\",\n")
         fmt.Println("\"message\": \""+resp.String()+"\"}")
