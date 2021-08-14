@@ -284,7 +284,9 @@ var high float64
 var volume float64
 var docomma bool = false
 
-_,offset := time.Now().Zone()
+zone,offset := time.Now().Zone()
+
+offset = 0
 
 var tmnow int64 = (time.Now().UTC().Unix() / 900) * 900 - int64(offset)
 var tmthen int64 = tmnow - 1800
@@ -358,7 +360,7 @@ if volume > 0 {
 	out += " \"interval\": \""+iFlag+"\",\n"
 	out += " \"candle\": [\n"
 	out += "  {\n"
-	out += "   \"time\": \""+tmtime.Format(layout)+" UTC\",\n"
+	out += "   \"time\": \""+tmtime.Format(layout)+" "+zone+"\",\n"
 	out += "   \"low\": "+fmt.Sprintf("%f",low)+",\n"
 	out += "   \"high\": "+fmt.Sprintf("%f",high)+",\n"
 	out += "   \"open\": "+fmt.Sprintf("%f",open)+",\n"
