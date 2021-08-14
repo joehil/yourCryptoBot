@@ -306,6 +306,9 @@ func getCandles() {
 		if cand["end"] != nil {
                 	end = cand["end"].(string)
 		}
+		if cand["exchange"] == nil {
+			continue
+		}
                 exchange = cand["exchange"].(string)
                 interval = cand["interval"].(string)
 		pair = cand["pair"].(map[string]interface{})
