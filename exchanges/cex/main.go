@@ -645,10 +645,8 @@ if err != nil { // Handle JSON errors
        	return
 }
 
-id := order["id"].(string)
-st := order["complete"].(bool)
-
-if st == false {
+if order["id"] != nil {
+	id := order["id"].(string)
         fmt.Println("{\"id\": \""+id+"\"}")
 } else {
         fmt.Println("{\"status\": \"invalid\",\n")
