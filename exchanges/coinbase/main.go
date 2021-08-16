@@ -599,27 +599,35 @@ fmt.Println(out)
 
 func submitOrder(){
 var order map[string]interface{}
-// Create a Resty Client
-client := resty.New()
-
-pFlag = strings.ReplaceAll(pFlag,"-","_")
 
 payload := `{
-"instrument_code": "`+pFlag+`",
-"side": "`+sFlag+`",
-"type": "`+tFlag+`",
-"amount": "`+aFlag+`",
+"product_id": "`+pFlag+`",
+"side": "`+strings.ToLower(sFlag)+`",
+"type": "`+strings.ToLower(tFlag)+`",
+"size": "`+aFlag+`",
 "price": "`+prFlag+`"
 }`
 
-//fmt.Println(payload)
+var timestmp = time.Now().Unix()
+
+tms := fmt.Sprintf("%d",timestmp) 
+
+signature := getSignature(tms, "POST", "/orders", payload)
+
+//fmt.Println(signature)
+
+// Create a Resty Client
+client := resty.New()
 
 resp, err := client.R().
-        SetBody(payload).
+	SetBody(payload).
 	SetHeader("Accept", "application/json").
-	SetHeader("Authorization", "Bearer "+apikey).
-	SetHeader("Content-Type", "application/json").
-	Post("https://api.exchange.bitpanda.com/public/v1/account/orders")
+        SetHeader("Content-Type", "application/json").
+	SetHeader("CB-ACCESS-KEY", apikey).
+        SetHeader("CB-ACCESS-SIGN", signature).
+        SetHeader("CB-ACCESS-TIMESTAMP", tms).
+        SetHeader("CB-ACCESS-PASSPHRASE", apiclient).
+	Post("https://api.pro.coinbase.com/orders")
 if err != nil {
 	fmt.Println(err)
 	return
@@ -636,8 +644,8 @@ if err != nil { // Handle JSON errors
 
 //fmt.Println(order)
 
-if order["order_id"] != nil {
-	id := order["order_id"].(string)
+if order["id"] != nil {
+	id := order["id"].(string)
 	fmt.Println("{\"id\": \""+id+"\"}")
 } else {
 	fmt.Println("{\"status\": \"invalid\",")
