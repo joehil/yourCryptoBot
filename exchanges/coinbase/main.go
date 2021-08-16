@@ -538,12 +538,25 @@ var order map[string]interface{}
 var status string = "invalid"
 var out string
 
+var timestmp = time.Now().Unix()
+
+tms := fmt.Sprintf("%d",timestmp) 
+
+signature := getSignature(tms, "GET", "/orders/"+oFlag, "")
+
+//fmt.Println(signature)
+
+// Create a Resty Client
 client := resty.New()
 
 resp, err := client.R().
 	SetHeader("Accept", "application/json").
-	SetHeader("Authorization", "Bearer "+apikey).
-	Get("https://api.exchange.bitpanda.com/public/v1/account/orders/"+oFlag)
+        SetHeader("Content-Type", "application/json").
+	SetHeader("CB-ACCESS-KEY", apikey).
+        SetHeader("CB-ACCESS-SIGN", signature).
+        SetHeader("CB-ACCESS-TIMESTAMP", tms).
+        SetHeader("CB-ACCESS-PASSPHRASE", apiclient).
+	Get("https://api.pro.coinbase.com/orders/"+oFlag)
 if err != nil {
 	fmt.Println(err)
 	return
@@ -551,22 +564,21 @@ if err != nil {
 
 //fmt.Println(resp.String())
 
+if resp.String() == `{"message":"NotFound"}` {
+	status = "CANCELED"
+}
+
 err = json.Unmarshal(resp.Body(), &order)
 if err != nil { // Handle JSON errors
-       	fmt.Printf("JSON error: %v\n", err)
-       	fmt.Printf("JSON input: %v\n", resp.Body())
-       	return
+        fmt.Printf("JSON error: %v\n", err)
+        fmt.Printf("JSON input: %v\n", resp.Body())
+        return
 }
 
 //fmt.Println(order)
 
-ord := order["order"].(map[string]interface{})
-
-status = ord["status"].(string)
-filled_amount := ord["filled_amount"].(string)
-
-if filled_amount == "0.0" {
-	status = "CANCELED"
+if status != "CANCELED" {
+	status = order["status"].(string)
 }
 
 out = "{\n"
