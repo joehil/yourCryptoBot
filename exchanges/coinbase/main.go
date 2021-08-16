@@ -371,15 +371,16 @@ fmt.Print(out)
 }
 
 func getTicker() {
+var tickers []interface{}
 var ticker map[string]interface{}
-pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", "_"))
 
 // Create a Resty Client
 client := resty.New()
 
 resp, err := client.R().
+      SetQueryString("limit=1").
       SetHeader("Accept", "application/json").
-      Get("https://api.exchange.bitpanda.com/public/v1/market-ticker/"+pFlag)
+      Get("https://api.pro.coinbase.com/products/"+pFlag+"/trades")
 
 if err != nil {
 	fmt.Println(err)
@@ -388,19 +389,22 @@ if err != nil {
 
 //fmt.Println(resp.String())
 
-err = json.Unmarshal(resp.Body(), &ticker)
+err = json.Unmarshal(resp.Body(), &tickers)
 if err != nil { // Handle JSON errors
        	fmt.Printf("JSON error: %v\n", err)
        	fmt.Printf("JSON input: %v\n", resp.Body())
        	return
 }
 
-if ticker["last_price"] != nil {
-	price := ticker["last_price"].(string)
-        fmt.Println("{\"last\": "+price+",\n\"exchange\": \""+exchange_name+"\"}")
-} else {
-	fmt.Println("{\"status\": \"invalid\",\n")
-        fmt.Println("\"message\": \""+resp.String()+"\"}")
+for _, tick := range tickers {
+	ticker = tick.(map[string]interface{})
+	if ticker["price"] != nil {
+		price := ticker["price"].(string)
+        	fmt.Println("{\"last\": "+price+",\n\"exchange\": \""+exchange_name+"\"}")
+	} else {
+		fmt.Println("{\"status\": \"invalid\",\n")
+        	fmt.Println("\"message\": \""+resp.String()+"\"}")
+	}
 }
 
 }
