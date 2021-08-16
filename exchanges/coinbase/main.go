@@ -649,13 +649,25 @@ if order["order_id"] != nil {
 func cancelOrder(){
 var out string
 
+var timestmp = time.Now().Unix()
+
+tms := fmt.Sprintf("%d",timestmp) 
+
+signature := getSignature(tms, "DELETE", "/orders/"+oFlag, "")
+
+//fmt.Println(signature)
+
 // Create a Resty Client
 client := resty.New()
 
 _, err := client.R().
 	SetHeader("Accept", "application/json").
-	SetHeader("Authorization", "Bearer "+apikey).
-	Delete("https://api.exchange.bitpanda.com/public/v1/account/orders/"+oFlag)
+        SetHeader("Content-Type", "application/json").
+	SetHeader("CB-ACCESS-KEY", apikey).
+        SetHeader("CB-ACCESS-SIGN", signature).
+        SetHeader("CB-ACCESS-TIMESTAMP", tms).
+        SetHeader("CB-ACCESS-PASSPHRASE", apiclient).
+	Delete("https://api.pro.coinbase.com/orders/"+oFlag)
 if err != nil {
 	fmt.Println(err)
 	return
