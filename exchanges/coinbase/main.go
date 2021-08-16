@@ -508,6 +508,9 @@ for _, order := range data {
         typ := strings.ToUpper(ord["type"].(string))
         side := strings.ToUpper(ord["side"].(string))
 	status := strings.ToUpper(ord["status"].(string))
+	if status == "DONE" {
+		status = "FILLED"
+	}
         tim := ord["created_at"].(string)
 	tmtime,_ := time.Parse("2006-01-02T15:04:05.999999Z",tim)
 	pair := ord["product_id"].(string)
@@ -583,6 +586,9 @@ if err != nil { // Handle JSON errors
 
 if status != "CANCELED" {
 	status = order["status"].(string)
+	if strings.ToUpper(status) == "DONE" {
+		status = "FILLED"
+	}
 }
 
 out = "{\n"
