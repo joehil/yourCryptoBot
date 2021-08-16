@@ -456,22 +456,27 @@ for _,balance := range data {
 }
 
 func getOrders() {
-var orders map[string]interface{}
 var out string
+var data []interface{}
+var timestmp = time.Now().Unix()
 
+tms := fmt.Sprintf("%d",timestmp) 
+
+signature := getSignature(tms, "GET", "/orders", "")
+
+//fmt.Println(signature)
+
+// Create a Resty Client
 client := resty.New()
 
-pFlag = strings.ReplaceAll(pFlag,"-","_")
-
-payload := url.Values{}
-payload.Add("instrument_code",pFlag)
-payload.Add("with_just_orders","true")
-
 resp, err := client.R().
-        SetBody(payload.Encode()).
 	SetHeader("Accept", "application/json").
-	SetHeader("Authorization", "Bearer "+apikey).
-	Get("https://api.exchange.bitpanda.com/public/v1/account/orders")
+        SetHeader("Content-Type", "application/json").
+	SetHeader("CB-ACCESS-KEY", apikey).
+        SetHeader("CB-ACCESS-SIGN", signature).
+        SetHeader("CB-ACCESS-TIMESTAMP", tms).
+        SetHeader("CB-ACCESS-PASSPHRASE", apiclient).
+	Get("https://api.pro.coinbase.com/orders")
 if err != nil {
 	fmt.Println(err)
 	return
@@ -479,32 +484,30 @@ if err != nil {
 
 //fmt.Println(resp.String())
 
-err = json.Unmarshal(resp.Body(), &orders)
+err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors
-       	fmt.Printf("JSON error: %v\n", err)
-       	fmt.Printf("JSON input: %v\n", resp.Body())
-       	return
+        fmt.Printf("JSON error: %v\n", err)
+        fmt.Printf("JSON input: %v\n", resp.Body())
+        return
 }
 
-orderhist := orders["order_history"].([]interface{})
-
-//fmt.Println(orderhist)
+//fmt.Println(data)
 
 out = "{\n"
 out += " \"orders\": [\n"
 
-for _, order := range orderhist {
+for _, order := range data {
 	ord := order.(map[string]interface{})
-	or := ord["order"].(map[string]interface{})
-	amount := or["amount"].(string)
-        price := or["price"].(string)
-        typ := or["type"].(string)
-        side := or["side"].(string)
-	id := or["order_id"].(string)
-        tim := or["time"].(string)
+	id := ord["id"].(string)
+	amount := ord["size"].(string)
+        price := ord["price"].(string)
+        typ := ord["type"].(string)
+        side := ord["side"].(string)
+	status := strings.ToUpper(ord["status"].(string))
+        tim := ord["created_at"].(string)
 	tmtime,_ := time.Parse("2006-01-02T15:04:05.999999Z",tim)
-	pair := or["instrument_code"].(string)
-        base := strings.ReplaceAll(pair, "_EUR", "")
+	pair := ord["product_id"].(string)
+        base := strings.ReplaceAll(pair, "-EUR", "")
 
 	if pair == pFlag { 
         	out += "   {\n"
@@ -517,7 +520,7 @@ for _, order := range orderhist {
         	out += "   \"order_type\": \""+typ+"\",\n"
         	out += "   \"creation_time\": "+fmt.Sprintf("%d",tmtime.Unix())+",\n"
         	out += "   \"update_time\": "+fmt.Sprintf("%d",tmtime.Unix())+",\n"
-        	out += "   \"status\": \"NEW\",\n"
+        	out += "   \"status\": \""+status+"\",\n"
         	out += "   \"price\": "+price+",\n"
         	out += "   \"amount\": "+amount+",\n"
         	out += "   \"open_volume\": "+amount+"\n"
