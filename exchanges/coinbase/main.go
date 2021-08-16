@@ -28,7 +28,6 @@ import (
 //  	"strconv"
 	"crypto/hmac"
 	"crypto/sha256"
-	"crypto/sha512"
 	"encoding/base64"
 	"net/url"
 /*	"syscall"
@@ -262,27 +261,12 @@ func read_config() {
 	}
 }
 
-func getKrakenSignature(url_path string, values url.Values, secret []byte) string {
-
-  sha := sha256.New()
-  sha.Write([]byte(values.Get("nonce") + values.Encode()))
-  shasum := sha.Sum(nil)
-
-  mac := hmac.New(sha512.New, secret)
-  mac.Write(append([]byte(url_path), shasum...))
+func getSignature(timest string, method string, path string, body string) string {
+  b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
+  mac := hmac.New(sha256.New, b64DecodedSecret)
+  mac.Write([]byte(timest + method + path + body))
   macsum := mac.Sum(nil)
   return base64.StdEncoding.EncodeToString(macsum)
-}
-
-func convCurr(curr string) string {
-var c string = curr
-if curr == "ETHEUR" {
-        c ="XETHZEUR"
-}
-if curr == "XRPEUR" {
-        c ="XXRPZEUR"
-}
-return c
 }
 
 func myUsage() {
@@ -422,15 +406,26 @@ if ticker["last_price"] != nil {
 }
 
 func getAccount() {
-var data map[string]interface{}
+var data []interface{}
+var timestmp = time.Now().Unix()
+
+tms := fmt.Sprintf("%d",timestmp) 
+
+signature := getSignature(tms, "GET", "/accounts", "")
+
+//fmt.Println(signature)
 
 // Create a Resty Client
 client := resty.New()
 
 resp, err := client.R().
 	SetHeader("Accept", "application/json").
-	SetHeader("Authorization", "Bearer "+apikey).
-	Get("https://api.exchange.bitpanda.com/public/v1/account/balances")
+        SetHeader("Content-Type", "application/json").
+	SetHeader("CB-ACCESS-KEY", apikey).
+        SetHeader("CB-ACCESS-SIGN", signature).
+        SetHeader("CB-ACCESS-TIMESTAMP", tms).
+        SetHeader("CB-ACCESS-PASSPHRASE", apiclient).
+	Get("https://api.pro.coinbase.com/accounts")
 if err != nil {
 	fmt.Println(err)
 	return
@@ -445,16 +440,17 @@ if err != nil { // Handle JSON errors
         return
 }
 
-balances := data["balances"].([]interface{})
+//fmt.Println(data)
 
-//fmt.Println(balances)
-
-for _,balance := range balances {
+for _,balance := range data {
+//	fmt.Println(balance)
 	bala := balance.(map[string]interface{})
-	curr := bala["currency_code"].(string)
+	curr := bala["currency"].(string)
 	amount := bala["available"].(string)
-	fmt.Printf("\"currency\": \"%s\",\n",curr)
-        fmt.Printf("\"total_value\": %s,\n",amount)
+	if amount != "0" {
+		fmt.Printf("\"currency\": \"%s\",\n",curr)
+        	fmt.Printf("\"total_value\": %s,\n",amount)
+	}
 }
 
 }
@@ -674,9 +670,7 @@ timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 payload := url.Values{}
 payload.Add("nonce",timest)
 
-b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
-
-signature := getKrakenSignature("/0/private/TradesHistory", payload, b64DecodedSecret)
+signature := "ccc"
 
 resp, err := client.R().
         SetBody(payload.Encode()).
