@@ -294,11 +294,13 @@ func getCandles() {
 var data []interface{}
 var candle []interface{}
 var layout string = "2006-01-02 15:04:05 MST"
-//var tm int64 = time.Now().Unix() - 900
 var pair string = strings.ToUpper(pFlag)
 var docomma bool = false
 
 var out string
+
+var tmnow int64 = (time.Now().UTC().Unix() / 900) * 900
+var tmthen int64 = (tmnow - 2700) * 1000
 
 pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
 
@@ -306,7 +308,7 @@ pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
 client := resty.New()
 
 resp, err := client.R().
-      SetQueryString("symbol="+pFlag+"&interval=15m&limit=3").
+      SetQueryString("symbol="+pFlag+"&interval=15m&limit=3&startTime="+fmt.Sprintf("%d",tmthen)).
       SetHeader("Accept", "application/json").
       Get("https://api.binance.com/api/v3/klines")
 
