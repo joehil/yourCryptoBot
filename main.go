@@ -2363,3 +2363,8 @@ func writeReport() {
 }
 
 
+func calculateSum() {
+        for _, v := range tradepairs {
+                getTransaction(v)
+        }
+}
