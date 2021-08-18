@@ -166,11 +166,11 @@ func main() {
 				getCandles()
 				os.Exit(0)
     			}
-/*                        if v == "getticker" {
+                        if v == "getticker" {
                                 getTicker()
                                 os.Exit(0)
                         }
-                        if v == "getaccountinfo" {
+/*                        if v == "getaccountinfo" {
                                 getAccount()
                                 os.Exit(0)
                         }
@@ -372,31 +372,37 @@ fmt.Print(out)
 }
 
 func getTicker() {
+var data map[string]interface{}
 pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
 
 // Create a Resty Client
 client := resty.New()
 
 resp, err := client.R().
-      SetQueryString("pair="+pFlag).
+      SetQueryString("symbol="+pFlag).
       SetHeader("Accept", "application/json").
-      Get("https://api.kraken.com/0/public/Ticker")
+      Get("https://api.binance.com/api/v3/ticker/price")
 
 if err != nil {
-	fmt.Println(err)
-	return
+        fmt.Println(err)
+        return
 }
 
 //fmt.Println(resp.String())
-pos := strings.Index(resp.String(), "\"c\":[\"") + 6
-if pos < 10 {
-	fmt.Println("{\"status\": \"invalid\",\n")
-        fmt.Println("\"message\": \""+resp.String()+"\"}")
+
+err = json.Unmarshal(resp.Body(), &data)
+if err != nil { // Handle JSON errors
+        fmt.Printf("JSON error: %v\n", err)
+        fmt.Printf("JSON input: %v\n", resp.Body())
+        return
+}
+
+if data["price"] != nil {
+	price := data["price"].(string)
+        fmt.Println("{\"last\": "+price+",\n\"exchange\": \""+exchange_name+"\"}")
 } else {
-	laststr := string(resp.String()[pos:pos+19])
-	lastarr := strings.Split(laststr,"\"")
-	last := lastarr[0]
-        fmt.Println("{\"last\": "+last+",\n\"exchange\": \""+exchange_name+"\"}")
+        fmt.Println("{\"status\": \"invalid\",\n")
+        fmt.Println("\"message\": \""+resp.String()+"\"}")
 }
 
 }
