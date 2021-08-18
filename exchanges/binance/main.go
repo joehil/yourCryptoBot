@@ -177,11 +177,11 @@ func main() {
                                 getOrders()
                                 os.Exit(0)
                         }
-/*                        if v == "getorder" {
+                        if v == "getorder" {
                                 getOrder()
                                 os.Exit(0)
                         }
-                        if v == "submitorder" {
+/*                        if v == "submitorder" {
                                 submitOrder()
                                 os.Exit(0)
                         }
@@ -548,54 +548,51 @@ fmt.Println(out)
 
 func getOrder() {
 var order map[string]interface{}
-var result map[string]interface{}
 var status string = "invalid"
 var out string
+
+pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
 
 // Create a Resty Client
 client := resty.New()
 
-//currencies := strings.Split(pFlag, "-")
-
-pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
-
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
 payload := url.Values{}
-payload.Add("nonce",timest)
-payload.Add("txid",oFlag)
+payload.Add("symbol",pFlag)
+payload.Add("orderId",oFlag)
+payload.Add("recvWindow","5000")
+payload.Add("timestamp",timest)
 
-signature := "aaa"
+//fmt.Println(payload.Encode())
+
+signature := getSignature(payload.Encode())
+
+payload.Add("signature",signature)
 
 resp, err := client.R().
-        SetBody(payload.Encode()).
-        SetHeader("Accept", "application/json").
-        SetHeader("API-Key", apikey).
-        SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
-        SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-        Post("https://api.kraken.com/0/private/QueryOrders")
+        SetQueryString(payload.Encode()).
+	SetHeader("Accept", "application/json").
+	SetHeader("X-MBX-APIKEY", apikey).
+	Get("https://api.binance.com/api/v3/order")
 if err != nil {
-        fmt.Println(err)
-        return
+	fmt.Println(err)
+	return
 }
 
 //fmt.Println(resp.String())
 
 err = json.Unmarshal(resp.Body(), &order)
 if err != nil { // Handle JSON errors
-       	fmt.Printf("JSON error: %v\n", err)
-       	fmt.Printf("JSON input: %v\n", resp.Body())
-       	return
+        fmt.Printf("JSON error: %v\n", err)
+        fmt.Printf("JSON input: %v\n", resp.Body())
+        return
 }
 
-if order["result"] != nil {
-	result = order["result"].(map[string]interface{})
-	rstr := fmt.Sprintf("Map: %v", result)
-	pos := strings.Index(rstr, "status:") + 7
-	statstr := string(rstr[pos:pos+20])
-	statarr := strings.Fields(statstr)
-	status = statarr[0]
+//fmt.Println(order)
+
+if order["status"] != nil {
+	status = order["status"].(string)
 }
 
 out = "{\n"
