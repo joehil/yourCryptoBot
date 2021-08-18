@@ -173,11 +173,11 @@ func main() {
                                 getAccount()
                                 os.Exit(0)
                         }
-/*                        if v == "getorders" {
+                        if v == "getorders" {
                                 getOrders()
                                 os.Exit(0)
                         }
-                        if v == "getorder" {
+/*                        if v == "getorder" {
                                 getOrder()
                                 os.Exit(0)
                         }
@@ -459,8 +459,7 @@ for _, acc := range accounts {
 }
 
 func getOrders() {
-var orders map[string]interface{}
-var result map[string]interface{}
+var orders []interface{}
 var price string
 var amount string
 var out string
@@ -469,65 +468,63 @@ var typ string
 var order_side string
 var tim time.Time = time.Now()
 
+pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
+
 // Create a Resty Client
 client := resty.New()
-
-//currencies := strings.Split(pFlag, "-")
 
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
 payload := url.Values{}
-payload.Add("nonce",timest)
+payload.Add("symbol",pFlag)
+payload.Add("recvWindow","5000")
+payload.Add("timestamp",timest)
 
-signature := "xxx"
+//fmt.Println(payload.Encode())
+
+signature := getSignature(payload.Encode())
+
+payload.Add("signature",signature)
 
 resp, err := client.R().
-        SetBody(payload.Encode()).
-        SetHeader("Accept", "application/json").
-        SetHeader("API-Key", apikey).
-        SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
-        SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-        Post("https://api.kraken.com/0/private/OpenOrders")
+        SetQueryString(payload.Encode()).
+	SetHeader("Accept", "application/json").
+	SetHeader("X-MBX-APIKEY", apikey).
+	Get("https://api.binance.com/api/v3/openOrders")
 if err != nil {
-        fmt.Println(err)
-        return
+	fmt.Println(err)
+	return
 }
 
 //fmt.Println(resp.String())
 
 err = json.Unmarshal(resp.Body(), &orders)
 if err != nil { // Handle JSON errors
-       	fmt.Printf("JSON error: %v\n", err)
-       	fmt.Printf("JSON input: %v\n", resp.Body())
-       	return
+        fmt.Printf("JSON error: %v\n", err)
+        fmt.Printf("JSON input: %v\n", resp.Body())
+        return
 }
-
-result = orders["result"].(map[string]interface{})
-result = result["open"].(map[string]interface{})
 
 out = "{\n"
 out += " \"orders\": [\n"
 
-for key, order := range result {
+for _, order := range orders {
 	var ord map[string]interface{}
-	var desc map[string]interface{}
 	ord = order.(map[string]interface{})
-	desc = ord["descr"].(map[string]interface{})
-	pair = desc["pair"].(string)
+
+	pair = ord["symbol"].(string)
 
 	base := strings.ReplaceAll(pair, "EUR", "")
-	pair = base + "-EUR"
 
-	price = desc["price"].(string)
-	amount = desc["order"].(string)
-	amnts := strings.Split(amount, " ") 
-	order_side = strings.ToUpper(desc["type"].(string))
-        typ = strings.ToUpper(desc["ordertype"].(string))
+	id := ord["orderId"].(float64)
+	price = ord["price"].(string)
+	amount = ord["origQty"].(string)
+	order_side = strings.ToUpper(ord["side"].(string))
+        typ = strings.ToUpper(ord["type"].(string))
 	if pair == pFlag {
         	out += "   {\n"
         	out += "   \"exchange\": \""+exchange_name+"\",\n"
-        	out += "   \"id\": \""+key+"\",\n"
+        	out += "   \"id\": \""+fmt.Sprintf("%.0f",id)+"\",\n"
         	out += "   \"base_currency\": \""+base+"\",\n"
         	out += "   \"quote_currency\": \"EUR\",\n"
         	out += "   \"asset_type\": \"SPOT\",\n"
@@ -537,8 +534,8 @@ for key, order := range result {
         	out += "   \"update_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
         	out += "   \"status\": \"NEW\",\n"
         	out += "   \"price\": "+price+",\n"
-        	out += "   \"amount\": "+amnts[1]+",\n"
-        	out += "   \"open_volume\": "+amnts[1]+"\n"
+        	out += "   \"amount\": "+amount+",\n"
+        	out += "   \"open_volume\": "+amount+"\n"
         	out += "   }\n"
 	}
 }
