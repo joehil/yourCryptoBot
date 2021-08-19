@@ -185,10 +185,10 @@ func main() {
                                 submitOrder()
                                 os.Exit(0)
                         }
-/*                        if v == "cancelorder" {
+                        if v == "cancelorder" {
                                 cancelOrder()
                                 os.Exit(0)
-                        } */
+                        } 
 		}
 
 		argsWithoutProg := os.Args[1:]
@@ -670,28 +670,32 @@ if order["orderId"] != nil {
 
 func cancelOrder(){
 var out string
+var order map[string]interface{}
+
+pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
 
 // Create a Resty Client
 client := resty.New()
 
-pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
-
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
 payload := url.Values{}
-payload.Add("nonce",timest)
-payload.Add("txid",oFlag)
+payload.Add("symbol",pFlag)
+payload.Add("orderId",oFlag)
+payload.Add("recvWindow","5000")
+payload.Add("timestamp",timest)
 
-signature := "qqq"
+//fmt.Println(payload.Encode())
+
+signature := getSignature(payload.Encode())
+
+payload.Add("signature",signature)
 
 resp, err := client.R().
-        SetBody(payload.Encode()).
+        SetQueryString(payload.Encode()).
 	SetHeader("Accept", "application/json").
-	SetHeader("API-Key", apikey).
-	SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
-	SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-	Post("https://api.kraken.com/0/private/CancelOrder")
+	SetHeader("X-MBX-APIKEY", apikey).
+	Delete("https://api.binance.com/api/v3/order")
 if err != nil {
 	fmt.Println(err)
 	return
@@ -699,16 +703,24 @@ if err != nil {
 
 //fmt.Println(resp.String())
 
-pos := strings.Index(resp.String(), "Invalid order")
+err = json.Unmarshal(resp.Body(), &order)
+if err != nil { // Handle JSON errors
+        fmt.Printf("JSON error: %v\n", err)
+        fmt.Printf("JSON input: %v\n", resp.Body())
+        return
+}
 
 out = "{\n"
 
-if pos < 5 {
-       	out += "   \"id\": \""+oFlag+"\",\n"
-       	out += "   \"status\": \"success\",\n"
+if order["orderId"] != nil {
+        id := order["orderId"].(float64)
+        out += "   \"id\": \""+fmt.Sprintf("%.0f",id)+"\",\n"
+        out += "   \"status\": \"success\",\n"
 } else {
         out += "   \"status\": \"failed\",\n"
 }
+
+
 out += "   \"exchange\": \""+exchange_name+"\"\n"
 
 out += "}"
