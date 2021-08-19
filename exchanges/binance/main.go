@@ -181,11 +181,11 @@ func main() {
                                 getOrder()
                                 os.Exit(0)
                         }
-/*                        if v == "submitorder" {
+                        if v == "jubmitorder" {
                                 submitOrder()
                                 os.Exit(0)
                         }
-                        if v == "cancelorder" {
+/*                        if v == "cancelorder" {
                                 cancelOrder()
                                 os.Exit(0)
                         } */
@@ -612,32 +612,38 @@ fmt.Println(out)
 }
 
 func submitOrder(){
+var order map[string]interface{}
+pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
+
+sFlag = strings.ToLower(sFlag)
+
 // Create a Resty Client
 client := resty.New()
-
-pFlag = strings.ToLower(strings.ReplaceAll(pFlag, "-", ""))
-sFlag = strings.ToLower(sFlag)
 
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
 payload := url.Values{}
-payload.Add("nonce",timest)
-payload.Add("pair",pFlag)
-payload.Add("type",strings.ToLower(sFlag))
-payload.Add("ordertype",strings.ToLower(tFlag))
+payload.Add("symbol",pFlag)
+payload.Add("side",sFlag)
+payload.Add("type",tFlag)
 payload.Add("price",prFlag)
-payload.Add("volume",aFlag)
+payload.Add("quantity",aFlag)
+payload.Add("timeInForce","GTC")
+payload.Add("recvWindow","5000")
+payload.Add("timestamp",timest)
 
-signature := "aaa"
+//fmt.Println(payload.Encode())
+
+signature := getSignature(payload.Encode())
+
+payload.Add("signature",signature)
 
 resp, err := client.R().
         SetBody(payload.Encode()).
 	SetHeader("Accept", "application/json").
-	SetHeader("API-Key", apikey).
-	SetHeader("API-Sign", signature).
-        SetHeader("User-Agent", "yourCryptoBot").
+	SetHeader("X-MBX-APIKEY", apikey).
 	SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-	Post("https://api.kraken.com/0/private/AddOrder")
+	Post("https://api.binance.com/api/v3/order")
 if err != nil {
 	fmt.Println(err)
 	return
@@ -645,15 +651,19 @@ if err != nil {
 
 //fmt.Println(resp.String())
 
-pos := strings.Index(resp.String(), "txid") + 8
-if pos < 10 {
+err = json.Unmarshal(resp.Body(), &order)
+if err != nil { // Handle JSON errors
+        fmt.Printf("JSON error: %v\n", err)
+        fmt.Printf("JSON input: %v\n", resp.Body())
+        return
+}
+
+if order["orderId"] != nil {
+	id := order["orderId"].(float64)
+        fmt.Println("{\"id\": \""+fmt.Sprintf("%.0f",id)+"\"}")
+} else { 
 	fmt.Println("{\"status\": \"invalid\",\n")
         fmt.Println("\"message\": \""+resp.String()+"\"}")
-} else {
-	statstr := string(resp.String()[pos:pos+19])
-	idarr := strings.Fields(statstr)
-	id := idarr[0]
-        fmt.Println("{\"id\": \""+id+"\"}")
 }
 
 }
