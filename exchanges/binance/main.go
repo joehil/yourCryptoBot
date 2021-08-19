@@ -181,7 +181,7 @@ func main() {
                                 getOrder()
                                 os.Exit(0)
                         }
-                        if v == "jubmitorder" {
+                        if v == "submitorder" {
                                 submitOrder()
                                 os.Exit(0)
                         }
