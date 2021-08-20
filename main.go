@@ -47,6 +47,7 @@ var do_trace bool = true
 var sleepbeforerun int
 
 var exchange_name string
+var curr_quote string = "EUR"
 
 var pairs []string
 var tradepairs []string
@@ -1203,6 +1204,7 @@ func read_config() {
 	sleepbeforerun = viper.GetInt("sleepbeforerun")
 
         exchange_name = viper.GetString("exchange_name")
+        curr_quote = viper.GetString("curr_quote")
 
 	gctcmd = viper.GetString("gctcmd")
 
@@ -2033,8 +2035,8 @@ func activatePosition(pair string) {
 	and l.pair = $2)
 	or rate < 
         (select current from yourlimits l
-        where LOWER(l.exchange) = 'bitstamp'
-        and l.pair = 'XRP-EUR'))
+        where LOWER(l.exchange) = $1
+        and l.pair = $2))
 	order by rate desc
 	limit 1);`
         _, err = db.Exec(sqlStatement,exchange_name,pair)
