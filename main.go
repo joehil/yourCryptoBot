@@ -2133,10 +2133,10 @@ func isEnoughMoney() bool {
         sqlStatement := `
         select amount from youraccount
         where LOWER(exchange) = $1
-	and currency in ('EUR','ZEUR')
+	and currency in ($2,$3)
 	limit 1;`
 
-        err = db.QueryRow(sqlStatement, exchange_name).Scan(&amount)
+        err = db.QueryRow(sqlStatement, exchange_name, curr_quote, "Z"+curr_quote).Scan(&amount)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
 		return false
