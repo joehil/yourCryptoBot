@@ -189,6 +189,10 @@ func main() {
                                 cancelOrder()
                                 os.Exit(0)
                         } 
+                        if v == "getinstruments" {
+                                getInstruments()
+                                os.Exit(0)
+                        }
 		}
 
 	}
@@ -731,4 +735,49 @@ out += "   \"exchange\": \""+exchange_name+"\"\n"
 out += "}"
  
 fmt.Println(out) 
+}
+
+func getInstruments() {
+var data map[string]interface{}
+
+timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
+
+payload := url.Values{}
+payload.Add("id",timest)
+payload.Add("nonce",timest)
+payload.Add("timestamp",timest)
+
+// Create a Resty Client
+client := resty.New()
+
+resp, err := client.R().
+      SetQueryString(payload.Encode()).
+      SetHeader("Accept", "application/json").
+      Get("https://api.crypto.com/v2/public/get-instruments")
+
+if err != nil {
+	fmt.Println(err)
+	return
+}
+
+//fmt.Println(resp.String())
+
+err = json.Unmarshal(resp.Body(), &data)
+if err != nil { // Handle JSON errors 
+	fmt.Printf("JSON error: %v\n", err)
+	fmt.Printf("JSON input: %v\n", resp.Body())
+	return
+}
+
+//fmt.Println(data)
+
+result := data["result"].(map[string]interface{})
+instruments := result["instruments"].([]interface{})
+
+//fmt.Println(instruments)
+
+for _, instrument := range instruments {
+	fmt.Println(instrument)
+} 
+
 }
