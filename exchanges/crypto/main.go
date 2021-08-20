@@ -284,8 +284,8 @@ func myUsage() {
 }
 
 func getCandles() {
-var data []interface{}
-var candle []interface{}
+var data map[string]interface{}
+var candles []interface{}
 var layout string = "2006-01-02 15:04:05 MST"
 var pair string = strings.ToUpper(pFlag)
 var docomma bool = false
@@ -302,7 +302,7 @@ pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", "_"))
 payload := url.Values{}
 payload.Add("instrument_name",pFlag)
 payload.Add("timeframe","15m")
-payload.Add("depth","3")
+payload.Add("depth","4")
 payload.Add("id",timest)
 payload.Add("nonce",timest)
 payload.Add("timestamp",timest)
@@ -320,9 +320,7 @@ if err != nil {
 	return
 }
 
-fmt.Println(resp.String())
-
-return
+//fmt.Println(resp.String())
 
 err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors 
@@ -332,6 +330,11 @@ if err != nil { // Handle JSON errors
 }
 
 //fmt.Println(data)
+
+result := data["result"].(map[string]interface{})
+candles = result["data"].([]interface{})
+
+//fmt.Println(candles)
 
 pairs := strings.Split(pair, "-")
 
@@ -345,26 +348,26 @@ out += " },\n"
 out += " \"interval\": \""+iFlag+"\",\n"
 out += " \"candle\": [\n"
 
-for _, cndl := range data {
-	candle = cndl.([]interface{})
-	if candle != nil {
+for i, cndl := range candles {
+	candle := cndl.(map[string]interface{})
+	if candle != nil && i < 3 {
 		if docomma {
 			out += ",\n"
 		}
-		tim := candle[0].(float64)
-                open := candle[1].(string)
-      	        high := candle[2].(string)
-               	low := candle[3].(string)
-       	        close := candle[4].(string)
-                volume := candle[5].(string)
+		tim := candle["t"].(float64)
+                open := candle["o"].(float64)
+      	        high := candle["h"].(float64)
+               	low := candle["l"].(float64)
+       	        close := candle["c"].(float64)
+                volume := candle["v"].(float64)
 		t := time.Unix(int64(tim/1000),0)
 		out += "  {\n"
 		out += "   \"time\": \""+t.Format(layout)+"\",\n"
-                out += "   \"low\": "+low+",\n"
-                out += "   \"high\": "+high+",\n"
-                out += "   \"open\": "+open+",\n"
-                out += "   \"close\": "+close+",\n"
-                out += "   \"volume\": "+volume+"\n"
+                out += "   \"low\": "+fmt.Sprintf("%f",low)+",\n"
+                out += "   \"high\": "+fmt.Sprintf("%f",high)+",\n"
+                out += "   \"open\": "+fmt.Sprintf("%f",open)+",\n"
+                out += "   \"close\": "+fmt.Sprintf("%f",close)+",\n"
+                out += "   \"volume\": "+fmt.Sprintf("%f",volume)+"\n"
 		out += "  }\n"
 		docomma = true
 		} 
@@ -415,6 +418,11 @@ if data["price"] != nil {
 func getAccount() {
 var data map[string]interface{}
 var account map[string]interface{}
+
+fmt.Println("{}")
+return
+
+
 
 // Create a Resty Client
 client := resty.New()
@@ -740,6 +748,8 @@ fmt.Println(out)
 func getInstruments() {
 var data map[string]interface{}
 
+pFlag = strings.ToUpper(strings.ReplaceAll(pFlag,"-","_"))
+
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
 payload := url.Values{}
@@ -777,7 +787,11 @@ instruments := result["instruments"].([]interface{})
 //fmt.Println(instruments)
 
 for _, instrument := range instruments {
-	fmt.Println(instrument)
+	instr := instrument.(map[string]interface{})
+	instrname := instr["instrument_name"].(string)
+	if instrname == pFlag || pFlag == "ALL" {
+		fmt.Println(instrument)
+	}
 } 
 
 }
