@@ -292,9 +292,6 @@ var docomma bool = false
 
 var out string
 
-//var tmnow int64 = (time.Now().UTC().Unix() / 900) * 900
-//var tmthen int64 = (tmnow - 2700) * 1000
-
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
 pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", "_"))
@@ -381,33 +378,48 @@ fmt.Print(out)
 
 func getTicker() {
 var data map[string]interface{}
-pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
+
+timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
+
+pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", "_"))
+
+payload := url.Values{}
+payload.Add("instrument_name",pFlag)
+payload.Add("id",timest)
+payload.Add("nonce",timest)
+payload.Add("timestamp",timest)
 
 // Create a Resty Client
 client := resty.New()
 
 resp, err := client.R().
-      SetQueryString("symbol="+pFlag).
+      SetQueryString(payload.Encode()).
       SetHeader("Accept", "application/json").
-      Get("https://api.binance.com/api/v3/ticker/price")
+      Get("https://api.crypto.com/v2/public/get-ticker")
 
 if err != nil {
-        fmt.Println(err)
-        return
+	fmt.Println(err)
+	return
 }
 
 //fmt.Println(resp.String())
 
 err = json.Unmarshal(resp.Body(), &data)
-if err != nil { // Handle JSON errors
-        fmt.Printf("JSON error: %v\n", err)
-        fmt.Printf("JSON input: %v\n", resp.Body())
-        return
+if err != nil { // Handle JSON errors 
+	fmt.Printf("JSON error: %v\n", err)
+	fmt.Printf("JSON input: %v\n", resp.Body())
+	return
 }
 
-if data["price"] != nil {
-	price := data["price"].(string)
-        fmt.Println("{\"last\": "+price+",\n\"exchange\": \""+exchange_name+"\"}")
+//fmt.Println(data)
+
+result := data["result"].(map[string]interface{})
+ticker := result["data"].(map[string]interface{})
+//fmt.Println(ticker)
+
+if ticker["a"] != nil {
+	price := ticker["a"].(float64)
+        fmt.Println("{\"last\": "+fmt.Sprintf("%f",price)+",\n\"exchange\": \""+exchange_name+"\"}")
 } else {
         fmt.Println("{\"status\": \"invalid\",\n")
         fmt.Println("\"message\": \""+resp.String()+"\"}")
