@@ -592,34 +592,42 @@ fmt.Println(out)
 }
 
 func getOrder() {
+var data map[string]interface{}
 var order map[string]interface{}
 var status string = "invalid"
 var out string
 
-pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
+pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", "_"))
 
 // Create a Resty Client
 client := resty.New()
 
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
-payload := url.Values{}
-payload.Add("symbol",pFlag)
-payload.Add("orderId",oFlag)
-payload.Add("recvWindow","5000")
-payload.Add("timestamp",timest)
+method := "private/get-order-detail"
 
-//fmt.Println(payload.Encode())
+sigpayload := method + timest + apikey + "order_id" + oFlag + timest
 
-signature := getSignature(payload.Encode())
+signature := getSignature(sigpayload)
 
-payload.Add("signature",signature)
+payload := `{
+"id": `+timest+`,
+"method": "`+method+`",
+"api_key": "`+apikey+`",
+"params": {
+"order_id": "` + oFlag + `"
+},
+"nonce": `+timest+`,
+"sig": "`+signature+`"
+}`
+
+//fmt.Println(payload)
 
 resp, err := client.R().
-        SetQueryString(payload.Encode()).
+        SetBody(payload).
 	SetHeader("Accept", "application/json").
-	SetHeader("X-MBX-APIKEY", apikey).
-	Get("https://api.binance.com/api/v3/order")
+        SetHeader("Content-Type", "application/json").
+      	Post("https://api.crypto.com/v2/"+method)
 if err != nil {
 	fmt.Println(err)
 	return
@@ -627,17 +635,26 @@ if err != nil {
 
 //fmt.Println(resp.String())
 
-err = json.Unmarshal(resp.Body(), &order)
+err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors
         fmt.Printf("JSON error: %v\n", err)
         fmt.Printf("JSON input: %v\n", resp.Body())
         return
 }
 
-//fmt.Println(order)
+//fmt.Println(data)
 
-if order["status"] != nil {
-	status = order["status"].(string)
+result := data["result"].(map[string]interface{})
+
+if result["order_info"] != nil {
+	order = result["order_info"].(map[string]interface{})
+
+	if order["status"] != nil {
+		status = order["status"].(string)
+		if status == "ACTIVE" {
+			status = "OPEN"
+		}
+	}
 }
 
 out = "{\n"
