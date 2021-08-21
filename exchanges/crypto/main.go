@@ -500,6 +500,14 @@ var typ string
 var order_side string
 var tim time.Time = time.Now()
 
+var tmnow int64 = (time.Now().UTC().Unix() / 900) * 900
+var tmthen int64 = (tmnow - 900) * 1000
+
+tmnow = tmnow * 1000
+
+tmnowstr := fmt.Sprintf("%d",tmnow)
+tmthenstr := fmt.Sprintf("%d",tmthen)
+
 pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", "_"))
 
 // Create a Resty Client
@@ -507,9 +515,9 @@ client := resty.New()
 
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
-method := "private/get-open-orders"
+method := "private/get-order-history"
 
-sigpayload := method + timest + apikey + "instrument_name" + pFlag + timest
+sigpayload := method + timest + apikey + "end_ts" + tmnowstr + "instrument_name" + pFlag + "start_ts" + tmthenstr + timest
 
 signature := getSignature(sigpayload)
 
@@ -518,7 +526,9 @@ payload := `{
 "method": "`+method+`",
 "api_key": "`+apikey+`",
 "params": {
-"instrument_name": "` + pFlag + `"
+"end_ts": `+tmnowstr+`,
+"instrument_name": "` + pFlag + `",
+"start_ts": `+tmthenstr+`
 },
 "nonce": `+timest+`,
 "sig": "`+signature+`"
