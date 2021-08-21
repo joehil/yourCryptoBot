@@ -674,38 +674,45 @@ fmt.Println(out)
 }
 
 func submitOrder(){
-var order map[string]interface{}
-pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
+var data map[string]interface{}
+pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", "_"))
 
-sFlag = strings.ToLower(sFlag)
+sFlag = strings.ToUpper(sFlag)
 
 // Create a Resty Client
 client := resty.New()
 
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
-payload := url.Values{}
-payload.Add("symbol",pFlag)
-payload.Add("side",sFlag)
-payload.Add("type",tFlag)
-payload.Add("price",prFlag)
-payload.Add("quantity",aFlag)
-payload.Add("timeInForce","GTC")
-payload.Add("recvWindow","5000")
-payload.Add("timestamp",timest)
+method := "private/create-order"
 
-//fmt.Println(payload.Encode())
+sigpayload := method + timest + apikey + "instrument_name" + pFlag + "price" + prFlag + "quantity" + aFlag +
+              "side" + sFlag + "type"+ tFlag + timest
 
-signature := getSignature(payload.Encode())
+signature := getSignature(sigpayload)
 
-payload.Add("signature",signature)
+payload := `{
+"id": `+timest+`,
+"method": "`+method+`",
+"api_key": "`+apikey+`",
+"params": {
+"instrument_name": "` + pFlag + `",
+"price": ` + prFlag + `,
+"quantity": ` + aFlag + `,
+"side": "` + sFlag + `",
+"type": "` + tFlag + `"
+},
+"nonce": `+timest+`,
+"sig": "`+signature+`"
+}`
+
+//fmt.Println(payload)
 
 resp, err := client.R().
-        SetBody(payload.Encode()).
+        SetBody(payload).
 	SetHeader("Accept", "application/json").
-	SetHeader("X-MBX-APIKEY", apikey).
-	SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8").
-	Post("https://api.binance.com/api/v3/order")
+        SetHeader("Content-Type", "application/json").
+      	Post("https://api.crypto.com/v2/"+method)
 if err != nil {
 	fmt.Println(err)
 	return
@@ -713,14 +720,19 @@ if err != nil {
 
 //fmt.Println(resp.String())
 
-err = json.Unmarshal(resp.Body(), &order)
+err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors
         fmt.Printf("JSON error: %v\n", err)
         fmt.Printf("JSON input: %v\n", resp.Body())
         return
 }
 
-if order["orderId"] != nil {
+result := data["result"].(map[string]interface{})
+//fmt.Println(result)
+
+if result["order_id"] != nil {
+	id := result["order_id"].(string)
+        fmt.Println("{\"id\": \""+id+"\"}")
         fmt.Println("{\"status\": \"success\"}")
 } else { 
 	fmt.Println("{\"status\": \"invalid\",\n")
