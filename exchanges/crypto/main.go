@@ -458,7 +458,7 @@ resp, err := client.R().
         SetBody(payload).
 	SetHeader("Accept", "application/json").
         SetHeader("Content-Type", "application/json").
-      	Post("https://api.crypto.com/v2/private/get-account-summary")
+      	Post("https://api.crypto.com/v2/"+method)
 if err != nil {
 	fmt.Println(err)
 	return
@@ -491,38 +491,46 @@ for _, acc := range accounts {
 }
 
 func getOrders() {
-var orders []interface{}
-var price string
-var amount string
+var data map[string]interface{}
+var price float64
+var amount float64
 var out string
 var pair string
 var typ string
 var order_side string
 var tim time.Time = time.Now()
 
-pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
+pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", "_"))
 
 // Create a Resty Client
 client := resty.New()
 
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
-payload := url.Values{}
-payload.Add("symbol",pFlag)
-payload.Add("recvWindow","5000")
-payload.Add("timestamp",timest)
+method := "private/get-open-orders"
 
-//fmt.Println(payload.Encode())
+sigpayload := method + timest + apikey + "instrument_name" + pFlag + timest
 
-signature := getSignature(payload.Encode())
+signature := getSignature(sigpayload)
 
-payload.Add("signature",signature)
+payload := `{
+"id": `+timest+`,
+"method": "`+method+`",
+"api_key": "`+apikey+`",
+"params": {
+"instrument_name": "` + pFlag + `"
+},
+"nonce": `+timest+`,
+"sig": "`+signature+`"
+}`
+
+//fmt.Println(payload)
 
 resp, err := client.R().
-        SetQueryString(payload.Encode()).
+        SetBody(payload).
 	SetHeader("Accept", "application/json").
-	SetHeader("X-MBX-APIKEY", apikey).
-	Get("https://api.binance.com/api/v3/openOrders")
+        SetHeader("Content-Type", "application/json").
+      	Post("https://api.crypto.com/v2/"+method)
 if err != nil {
 	fmt.Println(err)
 	return
@@ -530,12 +538,17 @@ if err != nil {
 
 //fmt.Println(resp.String())
 
-err = json.Unmarshal(resp.Body(), &orders)
+err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors
         fmt.Printf("JSON error: %v\n", err)
         fmt.Printf("JSON input: %v\n", resp.Body())
         return
 }
+
+//fmt.Println(data)
+
+result := data["result"].(map[string]interface{})
+orders := result["order_list"].([]interface{})
 
 out = "{\n"
 out += " \"orders\": [\n"
@@ -544,30 +557,30 @@ for _, order := range orders {
 	var ord map[string]interface{}
 	ord = order.(map[string]interface{})
 
-	pair = ord["symbol"].(string)
+	pair = ord["instrument_name"].(string)
 
-	base := strings.ReplaceAll(pair, "EUR", "")
+	pairs := strings.Split(pair, "_")
 
-	id := ord["orderId"].(float64)
-	price = ord["price"].(string)
-	amount = ord["origQty"].(string)
+	id := ord["order_id"].(string)
+	price = ord["price"].(float64)
+	amount = ord["quantity"].(float64)
 	order_side = strings.ToUpper(ord["side"].(string))
         typ = strings.ToUpper(ord["type"].(string))
 	if pair == pFlag {
         	out += "   {\n"
         	out += "   \"exchange\": \""+exchange_name+"\",\n"
-        	out += "   \"id\": \""+fmt.Sprintf("%.0f",id)+"\",\n"
-        	out += "   \"base_currency\": \""+base+"\",\n"
-        	out += "   \"quote_currency\": \"EUR\",\n"
+        	out += "   \"id\": \""+id+"\",\n"
+        	out += "   \"base_currency\": \""+pairs[0]+"\",\n"
+        	out += "   \"quote_currency\": \""+pairs[1]+"\",\n"
         	out += "   \"asset_type\": \"SPOT\",\n"
         	out += "   \"order_side\": \""+order_side+"\",\n"
         	out += "   \"order_type\": \""+typ+"\",\n"
         	out += "   \"creation_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
         	out += "   \"update_time\": "+fmt.Sprintf("%d",tim.Unix())+",\n"
         	out += "   \"status\": \"NEW\",\n"
-        	out += "   \"price\": "+price+",\n"
-        	out += "   \"amount\": "+amount+",\n"
-        	out += "   \"open_volume\": "+amount+"\n"
+        	out += "   \"price\": "+fmt.Sprintf("%f",price)+",\n"
+        	out += "   \"amount\": "+fmt.Sprintf("%f",amount)+",\n"
+        	out += "   \"open_volume\": "+fmt.Sprintf("%f",amount)+"\n"
         	out += "   }\n"
 	}
 }
