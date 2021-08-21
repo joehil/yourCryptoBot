@@ -721,8 +721,7 @@ if err != nil { // Handle JSON errors
 }
 
 if order["orderId"] != nil {
-	id := order["orderId"].(float64)
-        fmt.Println("{\"id\": \""+fmt.Sprintf("%.0f",id)+"\"}")
+        fmt.Println("{\"status\": \"success\"}")
 } else { 
 	fmt.Println("{\"status\": \"invalid\",\n")
         fmt.Println("\"message\": \""+resp.String()+"\"}")
@@ -732,32 +731,40 @@ if order["orderId"] != nil {
 
 func cancelOrder(){
 var out string
-var order map[string]interface{}
+var data map[string]interface{}
 
-pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", ""))
+pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", "_"))
 
 // Create a Resty Client
 client := resty.New()
 
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
-payload := url.Values{}
-payload.Add("symbol",pFlag)
-payload.Add("orderId",oFlag)
-payload.Add("recvWindow","5000")
-payload.Add("timestamp",timest)
+method := "private/cancel-order"
 
-//fmt.Println(payload.Encode())
+sigpayload := method + timest + apikey + "instrument_name" + pFlag + "order_id" + oFlag + timest
 
-signature := getSignature(payload.Encode())
+signature := getSignature(sigpayload)
 
-payload.Add("signature",signature)
+payload := `{
+"id": `+timest+`,
+"method": "`+method+`",
+"api_key": "`+apikey+`",
+"params": {
+"instrument_name": "` + pFlag + `",
+"order_id": "` + oFlag + `"
+},
+"nonce": `+timest+`,
+"sig": "`+signature+`"
+}`
+
+//fmt.Println(payload)
 
 resp, err := client.R().
-        SetQueryString(payload.Encode()).
+        SetBody(payload).
 	SetHeader("Accept", "application/json").
-	SetHeader("X-MBX-APIKEY", apikey).
-	Delete("https://api.binance.com/api/v3/order")
+        SetHeader("Content-Type", "application/json").
+      	Post("https://api.crypto.com/v2/"+method)
 if err != nil {
 	fmt.Println(err)
 	return
@@ -765,23 +772,27 @@ if err != nil {
 
 //fmt.Println(resp.String())
 
-err = json.Unmarshal(resp.Body(), &order)
+err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors
         fmt.Printf("JSON error: %v\n", err)
         fmt.Printf("JSON input: %v\n", resp.Body())
         return
 }
 
+//fmt.Println(data)
+
 out = "{\n"
 
-if order["orderId"] != nil {
-        id := order["orderId"].(float64)
-        out += "   \"id\": \""+fmt.Sprintf("%.0f",id)+"\",\n"
-        out += "   \"status\": \"success\",\n"
+if data["code"] != nil {
+	code := data["code"].(float64)
+	if code == 0 {
+        	out += "   \"status\": \"success\",\n"
+	} else {
+		out += "   \"status\": \"failed\",\n"
+	}
 } else {
         out += "   \"status\": \"failed\",\n"
 }
-
 
 out += "   \"exchange\": \""+exchange_name+"\"\n"
 
