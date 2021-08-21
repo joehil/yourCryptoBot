@@ -25,7 +25,7 @@ import (
 	flag "github.com/spf13/pflag"
 	"time"
 	"strings"
-  	"strconv"
+//  	"strconv"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -431,31 +431,37 @@ func getAccount() {
 var data map[string]interface{}
 var account map[string]interface{}
 
-fmt.Println("{}")
-return
-
-
+currencies := strings.Split(pFlag,"-")
 
 // Create a Resty Client
 client := resty.New()
 
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
-payload := url.Values{}
-payload.Add("recvWindow","5000")
-payload.Add("timestamp",timest)
+method := "private/get-account-summary"
 
-//fmt.Println(payload.Encode())
+sigpayload := method + timest + apikey + "currency" + currencies[0] + timest
 
-signature := getSignature(payload.Encode())
+signature := getSignature(sigpayload)
 
-payload.Add("signature",signature)
+payload := `{
+"id": `+timest+`,
+"method": "`+method+`",
+"api_key": "`+apikey+`",
+"params": {
+"currency": "`+currencies[0]+`"
+},
+"nonce": `+timest+`,
+"sig": "`+signature+`"
+}`
+
+//fmt.Println(payload)
 
 resp, err := client.R().
-        SetQueryString(payload.Encode()).
+        SetBody(payload).
 	SetHeader("Accept", "application/json").
-	SetHeader("X-MBX-APIKEY", apikey).
-	Get("https://api.binance.com/api/v3/account")
+        SetHeader("Content-Type", "application/json").
+      	Post("https://api.crypto.com/v2/private/get-account-summary")
 if err != nil {
 	fmt.Println(err)
 	return
@@ -472,16 +478,16 @@ if err != nil { // Handle JSON errors
 
 //fmt.Println(data)
 
-accounts := data["balances"].([]interface{})
+result := data["result"].(map[string]interface{})
+accounts := result["accounts"].([]interface{})
 
 for _, acc := range accounts {
 	account = acc.(map[string]interface{})
-	asset := account["asset"].(string)
-        free := account["free"].(string)
-	freefloat,_ := strconv.ParseFloat(free,64)
-	if freefloat > 0 {
+	asset := account["currency"].(string)
+        free := account["balance"].(float64)
+	if free > 0 {
 		fmt.Printf("\"currency\": \"%s\",\n",asset)
-        	fmt.Printf("\"total_value\": %s,\n",free)
+        	fmt.Printf("\"total_value\": %f,\n",free)
 	}
 }
 
