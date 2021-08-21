@@ -433,6 +433,8 @@ var account map[string]interface{}
 
 currencies := strings.Split(pFlag,"-")
 
+for _,curr := range currencies {
+
 // Create a Resty Client
 client := resty.New()
 
@@ -440,7 +442,7 @@ timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
 method := "private/get-account-summary"
 
-sigpayload := method + timest + apikey + "currency" + currencies[0] + timest
+sigpayload := method + timest + apikey + "currency" + curr + timest
 
 signature := getSignature(sigpayload)
 
@@ -449,7 +451,7 @@ payload := `{
 "method": "`+method+`",
 "api_key": "`+apikey+`",
 "params": {
-"currency": "`+currencies[0]+`"
+"currency": "`+curr+`"
 },
 "nonce": `+timest+`,
 "sig": "`+signature+`"
@@ -489,6 +491,8 @@ for _, acc := range accounts {
 		fmt.Printf("\"currency\": \"%s\",\n",asset)
         	fmt.Printf("\"total_value\": %f,\n",free)
 	}
+}
+
 }
 
 }
