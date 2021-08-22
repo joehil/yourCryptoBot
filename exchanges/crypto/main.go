@@ -747,8 +747,8 @@ result := data["result"].(map[string]interface{})
 
 if result["order_id"] != nil {
 	id := result["order_id"].(string)
-        fmt.Println("{\"id\": \""+id+"\"}")
-        fmt.Println("{\"status\": \"success\"}")
+        fmt.Println("{\"id\": \""+id+"\",")
+        fmt.Println("\"status\": \"success\"}")
 } else { 
 	fmt.Println("{\"status\": \"invalid\",\n")
         fmt.Println("\"message\": \""+resp.String()+"\"}")
