@@ -499,6 +499,7 @@ var pair string
 var typ string
 var order_side string
 var tim time.Time = time.Now()
+var docomma bool = false
 
 var tmnow int64 = (time.Now().UTC().Unix() / 900) * 900
 var tmthen int64 = (tmnow - 900) * 1000
@@ -577,6 +578,9 @@ for _, order := range orders {
 	order_side = strings.ToUpper(ord["side"].(string))
         typ = strings.ToUpper(ord["type"].(string))
 	if pair == pFlag {
+		if docomma {
+			out += ",\n"
+		}
         	out += "   {\n"
         	out += "   \"exchange\": \""+exchange_name+"\",\n"
         	out += "   \"id\": \""+id+"\",\n"
@@ -592,6 +596,7 @@ for _, order := range orders {
         	out += "   \"amount\": "+fmt.Sprintf("%f",amount)+",\n"
         	out += "   \"open_volume\": "+fmt.Sprintf("%f",amount)+"\n"
         	out += "   }\n"
+		docomma = true
 	}
 }
 
