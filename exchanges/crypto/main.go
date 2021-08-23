@@ -665,16 +665,18 @@ result := data["result"].(map[string]interface{})
 if result["order_info"] != nil {
 	order = result["order_info"].(map[string]interface{})
 
-	if order["status"] != nil {
-		status = order["status"].(string)
-		if status == "ACTIVE" {
-			status = "OPEN"
-		}
-	}
         if order["cumulative_quantity"] != nil {
                 amount = order["cumulative_quantity"].(float64)
         }
-
+	if order["status"] != nil {
+		status = order["status"].(string)
+		if status == "ACTIVE" && amount == 0 {
+			status = "OPEN"
+		}
+                if status == "ACTIVE" && amount > 0 {
+                        status = "FILLED"
+                }
+	}
 }
 
 out = "{\n"
