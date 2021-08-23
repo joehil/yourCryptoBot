@@ -684,6 +684,10 @@ out = "{\n"
 if status != "invalid" {
         out += "   \"exchange\": \""+exchange_name+"\",\n"
 	out += "   \"id\": \""+oFlag+"\",\n"
+        if  order["reason"] != nil {
+		reason :=  order["reason"].(string)
+                out += "   \"reason\": \""+reason+"\",\n"
+        }
 	if amount > 0 {
         	out += "   \"amount\": "+fmt.Sprintf("%f",amount)+",\n"
 	}
@@ -753,7 +757,6 @@ if err != nil { // Handle JSON errors
 }
 
 result := data["result"].(map[string]interface{})
-//fmt.Println(result)
 
 if result["order_id"] != nil {
 	id := result["order_id"].(string)
