@@ -610,6 +610,7 @@ func getOrder() {
 var data map[string]interface{}
 var order map[string]interface{}
 var status string = "invalid"
+var amount float64 = 0
 var out string
 
 pFlag = strings.ToUpper(strings.ReplaceAll(pFlag, "-", "_"))
@@ -670,6 +671,10 @@ if result["order_info"] != nil {
 			status = "OPEN"
 		}
 	}
+        if order["cumulative_quantity"] != nil {
+                amount = order["cumulative_quantity"].(float64)
+        }
+
 }
 
 out = "{\n"
@@ -677,6 +682,9 @@ out = "{\n"
 if status != "invalid" {
         out += "   \"exchange\": \""+exchange_name+"\",\n"
 	out += "   \"id\": \""+oFlag+"\",\n"
+	if amount > 0 {
+        	out += "   \"amount\": "+fmt.Sprintf("%f",amount)+",\n"
+	}
         out += "   \"status\": \""+strings.ToUpper(status)+"\"\n"
 } else {
         out += "   \"exchange\": \""+exchange_name+"\",\n"
