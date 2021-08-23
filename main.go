@@ -696,7 +696,7 @@ func deleteOrders() {
 
         sqlStatement := `
         delete from yourorder
-	where status in ('CANCELLED','CANCELED')
+	where status in ('CANCELLED','CANCELED','REJECTED')
 	AND LOWER(exchange) = $1;`
         _, err = db.Exec(sqlStatement,exchange_name)
         if err != nil {
