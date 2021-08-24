@@ -742,10 +742,12 @@ func getAccount() []byte {
 }
 
 func getOrder(pair string,id string) []byte {
-        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getorder",
-        "--exchange",exchange_name,"--asset","SPOT","--pair",pair,"--order_id",id).Output()
+        cmd := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getorder",
+        "--exchange",exchange_name,"--asset","SPOT","--pair",pair,"--order_id",id)
+	out, err := cmd.Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
+		fmt.Println(cmd.String())
         }
         return out
 }

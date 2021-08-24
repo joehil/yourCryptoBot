@@ -685,8 +685,8 @@ if status != "invalid" {
         out += "   \"exchange\": \""+exchange_name+"\",\n"
 	out += "   \"id\": \""+oFlag+"\",\n"
         if  order["reason"] != nil {
-		reason :=  order["reason"].(string)
-                out += "   \"reason\": \""+reason+"\",\n"
+		reason :=  order["reason"].(float64)
+                out += "   \"reason\": \""+fmt.Sprintf("%.0f",reason)+"\",\n"
         }
 	if amount > 0 {
         	out += "   \"amount\": "+fmt.Sprintf("%f",amount)+",\n"
