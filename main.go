@@ -248,6 +248,10 @@ func main() {
                         writeCharts()
                         os.Exit(0)
                 }
+                if a1 == "sum" {
+                        calculateSum()
+                        os.Exit(0)
+                }
                 if a1 == "positions" {
                         deactivatePositions()
                         activatePositions()
@@ -2370,7 +2374,35 @@ func writeReport() {
 
 
 func calculateSum() {
-        for _, v := range tradepairs {
-                getTransaction(v)
+	fmt.Println("Calculate sum")
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+	delete from yoursum where valdate = current_date;
+	insert into yoursum (exchange,sum,valdate)
+	select exchange, sum(amount) as amount, current_date from
+	(
+	select exchange, amount
+	from youraccount a
+	where currency in ('EUR','ZEUR','USDC')
+	union
+	select a.exchange as exchange, 
+	sum(a.amount * l.avg) as amount 
+	from youraccount a, yourlimits l 
+	where a.exchange = l.exchange 
+	and a.currency = substring(l.pair,1,position('-' in l.pair)-1) 
+	group by a.exchange
+	) t
+	group by t.exchange;
+	`
+        _, err = db.Exec(sqlStatement)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
         }
+
 }
