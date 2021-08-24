@@ -774,11 +774,13 @@ func submitOrder(pair string,side string,otype string,amount float64,price float
 
 	fmt.Printf("A: %s, P: %s\n",stramount,strprice)
 
-        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "submitorder",
+        cmd := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "submitorder",
         "--exchange",exchange_name,"--asset","SPOT","--pair",pair,"--side",side,"--type",otype,
-	"--amount",stramount,"--price",strprice,"--client_id",clientid).Output()
+	"--amount",stramount,"--price",strprice,"--client_id",clientid)
+	out, err := cmd.Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
+		fmt.Println(cmd.String())
         } else {
                 err := json.Unmarshal(out, &resp)
                 if err != nil { // Handle JSON errors
