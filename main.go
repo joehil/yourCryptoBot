@@ -161,6 +161,7 @@ func main() {
                         os.Exit(0)
                 }
                 if a1 == "report" {
+                        calculateSum()
 			writeReport()
                         os.Exit(0)
                 }
@@ -2268,6 +2269,9 @@ func writeReport() {
         var sum float64
 	var exchange string
 	var valdate time.Time
+	var olddate time.Time
+	var parmstr string
+	var docomma bool = false
 	var out string
 
         fmt.Println("Write report")
@@ -2298,12 +2302,26 @@ func writeReport() {
         }
         defer rows.Close()
 
+	parmstr = ""
+	olddate = time.Date(2009, 11, 17, 0, 0, 0, 0, time.UTC)
+
         for rows.Next(){
                 if err := rows.Scan(&exchange, &valdate, &sum); err != nil {
                         fmt.Println(err)
                 }
-		fmt.Printf("%s %s %f\n",exchange,valdate.Format("2006-01-02"), sum)
+		if olddate != valdate {
+			olddate = valdate
+			if docomma {
+				 parmstr += "],\n"
+			}
+			parmstr += "\n"+`['`+valdate.Format("2006-01-02")+`', ` + fmt.Sprintf("%f",sum)
+		} else {
+			parmstr += `, `+fmt.Sprintf("%f",sum)
+		}
+		docomma = true
         }
+
+	parmstr += "]"
 
 	out = `
 <html>
@@ -2315,10 +2333,8 @@ func writeReport() {
 
       function drawChart() {
         var data = google.visualization.arrayToDataTable([
-          ['Day', 'Binance', 'Bitpanda', 'Bitstamp', 'Cex', 'Coinbase', 'Crypto', 'Kraken'],
-          ['2013',  1000,      400, 3, 4, 5, 6, 7],
-          ['2014',  1170,      460, 6, 7, 8, 9, 10],
-        ]);
+          ['Day', 'Binance', 'Bitpanda', 'Bitstamp', 'Cex', 'Coinbase', 'Crypto', 'Kraken'],`+ parmstr + `
+         ]);
 
         var options = {
           title: 'Exchange Performance',
@@ -2332,7 +2348,7 @@ func writeReport() {
     </script>
   </head>
   <body>
-    <div id="chart_div" style="width: 100%; height: 500px;"></div>
+    <div id="chart_div" style="width: 100%; height: 800px;"></div>
   </body>
 </html>
 
