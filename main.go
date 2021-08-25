@@ -44,6 +44,7 @@ import (
 var pipeFile = "/tmp/yourpipe"
 
 var do_trace bool = true
+var btcref bool = false
 var sleepbeforerun int
 
 var exchange_name string
@@ -140,6 +141,9 @@ func main() {
 			processMinMax()
 			calculateLimit()
 			calculateTrends()
+			if btcref {
+				btcReference()
+			}
 			deleteAccounts()
 			readAccount()
 			readOrders()
@@ -1209,6 +1213,7 @@ func read_config() {
         tradepairs = viper.GetStringSlice("tradepairs")
 
         do_trace = viper.GetBool("do_trace")
+        btcref = viper.GetBool("btcref")
 	sleepbeforerun = viper.GetInt("sleepbeforerun")
 
         exchange_name = viper.GetString("exchange_name")
@@ -2389,4 +2394,34 @@ func calculateSum() {
                 fmt.Printf("SQL error: %v\n",err)
         }
 
+}
+
+func btcReference(){
+        fmt.Println("BTC reference")
+
+	var trend1 float64
+        var trend2 float64
+        var trend3 float64
+        var lastcandle float64
+
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+ 
+        sqlStatement := `
+        select trend1, trend2, trend3, lastcandle from yourlimits
+	where pair = 'BTC-EUR' 
+	and exchange = $1;`
+
+	err = db.QueryRow(sqlStatement, exchange_name).Scan(&trend1, &trend2, &trend3, &lastcandle)
+	if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+
+	if (trend1 < -1) && (trend2 < -1) && (trend3 < -1) && (lastcandle < 0) {
+		submitTelegram("BTC is falling, trading should be paused\n")
+	}
 }
