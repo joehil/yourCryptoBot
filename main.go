@@ -2423,5 +2423,8 @@ func btcReference(){
 
 	if (trend1 < -1) && (trend2 < -1) && (trend3 < -1) && (lastcandle < 0) {
 		submitTelegram("BTC is falling, trading should be paused\n")
+		fmt.Println("BTC is falling, trading should be paused")
+	} else {
+		fmt.Println("BTC is ok, trading can continue")
 	}
 }
