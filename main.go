@@ -160,8 +160,7 @@ func main() {
                         jhtest()
                         os.Exit(0)
                 }
-                if a1 == "gettransactions" {
-                        getTransactions()
+                if a1 == "report" {
 			writeReport()
                         os.Exit(0)
                 }
@@ -2266,18 +2265,14 @@ func getTransactions() {
 }
 
 func writeReport() {
-        var amount float64
-	var sumamount float64
-        var fee float64
-	var sumfee float64
-	var pair string
-	var amountstr string
-	var feestr string
+        var sum float64
+	var exchange string
+	var valdate time.Time
 	var out string
 
         fmt.Println("Write report")
 
-	f, err := os.Create(wwwpath+"/reports/"+exchange_name+".html")
+	f, err := os.Create(wwwpath+"/reports/profit.html")
 
 	if err != nil {
         	panic(err)
@@ -2293,82 +2288,55 @@ func writeReport() {
         defer db.Close()
 
         sqlStatement := `
-        select pair, sum(amount_quote) as amount, sum(fee) as fee from yourtransaction
-	where LOWER(exchange) = $1
-        and "timestamp" > current_timestamp - interval '30 days'
-        group by pair;`
+        select exchange,valdate, sum from yoursum
+        where valdate > current_date - interval '30 days'
+        order by valdate, exchange;`
 
-	amountstr = `['Currency', 'Win per Currency'],`
-	feestr = `['Currency', 'Fee per Currency'],`
-
-        rows, err := db.Query(sqlStatement,exchange_name)
+        rows, err := db.Query(sqlStatement)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
         defer rows.Close()
 
         for rows.Next(){
-                if err := rows.Scan(&pair, &amount, &fee); err != nil {
+                if err := rows.Scan(&exchange, &valdate, &sum); err != nil {
                         fmt.Println(err)
                 }
-		for amount < 0 {
-			amount += float64(invest_amount)
-		}
-		amountstr += fmt.Sprintf("['%s: %3.2f', %.2f],\n",pair,amount,amount) 
-		feestr += fmt.Sprintf("['%s: %3.2f', %.2f],\n",pair,fee,fee)
-		sumamount += amount
-		sumfee += fee 
+		fmt.Printf("%s %s %f\n",exchange,valdate.Format("2006-01-02"), sum)
         }
+
 	out = `
 <html>
   <head>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script type="text/javascript">
-      google.charts.load("current", {packages:["corechart"]});
-      google.charts.setOnLoadCallback(drawWin);
-      google.charts.setOnLoadCallback(drawFee);
-      function drawWin() {
-        var data = google.visualization.arrayToDataTable([
-		`
-	out += amountstr
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
 
-	out += `
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable([
+          ['Day', 'Binance', 'Bitpanda', 'Bitstamp', 'Cex', 'Coinbase', 'Crypto', 'Kraken'],
+          ['2013',  1000,      400, 3, 4, 5, 6, 7],
+          ['2014',  1170,      460, 6, 7, 8, 9, 10],
         ]);
 
         var options = {
-          title: '`+exchange_name+` wins `+fmt.Sprintf("%4.2f",sumamount)+`',
-          pieSliceText: 'value',
-          pieHole: 0.4,
+          title: 'Exchange Performance',
+          hAxis: {title: 'Day',  titleTextStyle: {color: '#333'}},
+          vAxis: {minValue: 0}
         };
 
-        var chart = new google.visualization.PieChart(document.getElementById('donutWin'));
-        chart.draw(data, options);
-      }
-      function drawFee() {
-        var data = google.visualization.arrayToDataTable([
-		`
-	out += feestr
-
-	out += `
-        ]);
-
-        var options = {
-          title: '`+exchange_name+` fees `+fmt.Sprintf("%4.2f",sumfee)+`',
-          pieSliceText: 'value',
-          pieHole: 0.4,
-        };
-
-        var chart = new google.visualization.PieChart(document.getElementById('donutFee'));
+        var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
         chart.draw(data, options);
       }
     </script>
   </head>
   <body>
-    <div id="donutWin" style="width: 900px; height: 500px;"></div>
-    <div id="donutFee" style="width: 900px; height: 500px;"></div>
+    <div id="chart_div" style="width: 100%; height: 500px;"></div>
   </body>
 </html>
-		`
+
+ `
         _, err = f.WriteString(out)
 }
 
