@@ -2430,7 +2430,7 @@ func btcReference(){
 		fmt.Println("BTC is falling, trading should be paused")
 		insertParms("btcfall", 1, float64(0), "", time.Now(), time.Now(), time.Now())
 	}
-        if (trend1 < 0.1) && (trend2 < 0.1) && (trend3 < 0.1) {
+        if (trend1 > 0.1) && (trend2 > 0.1) && (trend3 > 0.1) {
                 submitTelegram("BTC is rising, trading should be started\n")
                 fmt.Println("BTC is rising, trading should be started")
 		deleteParms("btcfall")
