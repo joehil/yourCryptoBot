@@ -2421,7 +2421,7 @@ func btcReference(){
                 fmt.Printf("SQL error: %v\n",err)
         }
 
-	if (trend1 < -1) && (trend2 < -1) && (trend3 < -1) && (lastcandle < 0) {
+	if (trend1 < -0.7) && (trend2 < -0.7) && (trend3 < -0.7) {
 		submitTelegram("BTC is falling, trading should be paused\n")
 		fmt.Println("BTC is falling, trading should be paused")
 	} else {
