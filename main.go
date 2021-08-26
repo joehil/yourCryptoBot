@@ -1692,7 +1692,11 @@ func buyOrders() {
                 fmt.Println("Trades not allowed")
                 return
         }
-
+        parm,err = getParms("btcfall")
+        if err == nil {
+                fmt.Println("Trades not allowed, BTC is falling")
+                return
+        }
         for i, v := range tradepairs {
                 fmt.Printf("%d, Value: %v\n", i, v )
                 out := getOrders(v)
@@ -2424,7 +2428,11 @@ func btcReference(){
 	if (trend1 < -0.7) && (trend2 < -0.7) && (trend3 < -0.7) {
 		submitTelegram("BTC is falling, trading should be paused\n")
 		fmt.Println("BTC is falling, trading should be paused")
-	} else {
-		fmt.Println("BTC is ok, trading can continue")
+		insertParms("btcfall", 1, float64(0), "", time.Now(), time.Now(), time.Now())
 	}
+        if (trend1 < 0.1) && (trend2 < 0.1) && (trend3 < 0.1) {
+                submitTelegram("BTC is rising, trading should be started\n")
+                fmt.Println("BTC is rising, trading should be started")
+		deleteParms("btcfall")
+        }
 }
