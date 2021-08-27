@@ -413,7 +413,7 @@ client := resty.New()
 timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
 payload := url.Values{}
-payload.Add("recvWindow","5000")
+payload.Add("recvWindow","30000")
 payload.Add("timestamp",timest)
 
 //fmt.Println(payload.Encode())
@@ -477,7 +477,7 @@ timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 
 payload := url.Values{}
 payload.Add("symbol",pFlag)
-payload.Add("recvWindow","5000")
+payload.Add("recvWindow","30000")
 payload.Add("timestamp",timest)
 
 //fmt.Println(payload.Encode())
@@ -561,7 +561,7 @@ timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 payload := url.Values{}
 payload.Add("symbol",pFlag)
 payload.Add("orderId",oFlag)
-payload.Add("recvWindow","5000")
+payload.Add("recvWindow","30000")
 payload.Add("timestamp",timest)
 
 //fmt.Println(payload.Encode())
@@ -629,7 +629,7 @@ payload.Add("type",tFlag)
 payload.Add("price",prFlag)
 payload.Add("quantity",aFlag)
 payload.Add("timeInForce","GTC")
-payload.Add("recvWindow","5000")
+payload.Add("recvWindow","30000")
 payload.Add("timestamp",timest)
 
 //fmt.Println(payload.Encode())
@@ -682,7 +682,7 @@ timest := fmt.Sprintf("%d",time.Now().UnixNano()/1000000)
 payload := url.Values{}
 payload.Add("symbol",pFlag)
 payload.Add("orderId",oFlag)
-payload.Add("recvWindow","5000")
+payload.Add("recvWindow","30000")
 payload.Add("timestamp",timest)
 
 //fmt.Println(payload.Encode())
