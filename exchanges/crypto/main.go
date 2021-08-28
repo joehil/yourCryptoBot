@@ -37,6 +37,8 @@ import (
 	"encoding/json" 
 	"github.com/go-resty/resty/v2"
 	"github.com/spf13/viper"
+   	"database/sql"
+    	_ "github.com/lib/pq"
 )
 
 var pipeFile = "/tmp/yourpipe"
@@ -748,6 +750,7 @@ if err != nil {
 }
 
 //fmt.Println(resp.String())
+traceLog(resp.String())
 
 err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors
@@ -890,4 +893,19 @@ for _, instrument := range instruments {
 	}
 } 
 
+}
+
+func traceLog(text string) {
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, _ := sql.Open("postgres", psqlconn)
+//        CheckError(err)
+
+        defer db.Close()
+
+	sqlStatement := `
+	INSERT INTO yourtrace (
+	timest, exchange, log)
+	VALUES ($1, $2, $3)`
+	_, _ = db.Exec(sqlStatement, time.Now(), exchange_name, text)
 }
