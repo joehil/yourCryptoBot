@@ -729,8 +729,8 @@ payload := `{
 "api_key": "`+apikey+`",
 "params": {
 "instrument_name": "` + pFlag + `",
-"price": ` + prFlag + `,
-"quantity": ` + aFlag + `,
+"price": "` + prFlag + `",
+"quantity": "` + aFlag + `",
 "side": "` + sFlag + `",
 "type": "` + tFlag + `"
 },
