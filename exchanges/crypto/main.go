@@ -652,6 +652,7 @@ if err != nil {
 }
 
 //fmt.Println(resp.String())
+traceLog(resp.String())
 
 err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors

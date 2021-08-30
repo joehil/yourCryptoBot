@@ -2425,12 +2425,12 @@ func btcReference(){
                 fmt.Printf("SQL error: %v\n",err)
         }
 
-	if (trend1 < -0.7) && (trend2 < -0.7) && (trend3 < -0.7) {
+	if (trend1 < -0.4) && (trend2 < -0.4) && (trend3 < -0.4) {
 		submitTelegram("BTC is falling, trading should be paused\n")
 		fmt.Println("BTC is falling, trading should be paused")
 		insertParms("btcfall", 1, float64(0), "", time.Now(), time.Now(), time.Now())
 	}
-        if (trend1 > 0.1) && (trend2 > 0.1) && (trend3 > 0.1) {
+        if (trend1 > 0) && (trend2 > 0) && (trend3 > 0) {
                 submitTelegram("BTC is rising, trading should be started\n")
                 fmt.Println("BTC is rising, trading should be started")
 		deleteParms("btcfall")
