@@ -168,6 +168,7 @@ func main() {
                         calculateSum()
 			writeReport()
 			writeSumAll()
+			writeDiff()
                         os.Exit(0)
                 }
                 if a1 == "gettransactionsall" {
@@ -2518,5 +2519,86 @@ func writeSumAll(){
 }
 
 func writeDiff() {
+        var sum float64
+	var valdate time.Time
+//	var olddate time.Time
+	var parmstr string
+	var docomma bool = false
+	var out string
 
+        fmt.Println("Write difference")
+
+	f, err := os.Create(wwwpath+"/reports/difference.html")
+
+	if err != nil {
+        	panic(err)
+	}
+
+	defer f.Close()
+
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+	select v1, (sum1 - sum2) from
+	(select valdate as v1 ,sum(sum) as sum1 from yoursum 
+	group by valdate
+	order by valdate) s1,
+	(select valdate as v2 ,sum(sum) as sum2 from yoursum 
+	group by valdate
+	order by valdate) s2
+	where v1 = v2 + interval '1 day'
+	order by v1;`
+
+        rows, err := db.Query(sqlStatement)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+        defer rows.Close()
+
+	parmstr = ""
+//	olddate = time.Date(2009, 11, 17, 0, 0, 0, 0, time.UTC)
+
+        for rows.Next(){
+                if err := rows.Scan(&valdate, &sum); err != nil {
+                        fmt.Println(err)
+                }
+                if docomma {
+	                parmstr += ",\n"
+                }
+		parmstr += "\n"+`['`+valdate.Format("2006-01-02")+`', ` + fmt.Sprintf("%.0f",sum) + "]\n"
+		docomma = true
+        }
+
+	out = `
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable([
+          ['Day', 'Difference'],`+ parmstr + `
+         ]);
+        var options = {
+          title: 'Difference',
+          hAxis: {title: 'Day',  titleTextStyle: {color: '#333'}},
+          vAxis: {minValue: 0}
+        };
+        var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
+        chart.draw(data, options);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="chart_div" style="width: 100%; height: 800px;"></div>
+  </body>
+</html>
+ `
+        _, err = f.WriteString(out)
 }
