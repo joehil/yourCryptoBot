@@ -2441,8 +2441,8 @@ func btcReference(){
 
 func writeSumAll(){
         var sum float64
+	var min float64 = 9999999
 	var valdate time.Time
-//	var olddate time.Time
 	var parmstr string
 	var docomma bool = false
 	var out string
@@ -2476,7 +2476,6 @@ func writeSumAll(){
         defer rows.Close()
 
 	parmstr = ""
-//	olddate = time.Date(2009, 11, 17, 0, 0, 0, 0, time.UTC)
 
         for rows.Next(){
                 if err := rows.Scan(&valdate, &sum); err != nil {
@@ -2485,9 +2484,14 @@ func writeSumAll(){
                 if docomma {
 	                parmstr += ",\n"
                 }
+		if sum < min {
+			min = sum
+		}
 		parmstr += "\n"+`['`+valdate.Format("2006-01-02")+`', ` + fmt.Sprintf("%.0f",sum) + "]\n"
 		docomma = true
         }
+
+	min -= 100
 
 	out = `
 <html>
@@ -2503,9 +2507,9 @@ func writeSumAll(){
         var options = {
           title: 'Over All Performance',
           hAxis: {title: 'Day',  titleTextStyle: {color: '#333'}},
-          vAxis: {minValue: 0}
+          vAxis: {minValue: ` + fmt.Sprintf("%.0f",min) +  `}
         };
-        var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
+        var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
         chart.draw(data, options);
       }
     </script>
@@ -2590,7 +2594,7 @@ func writeDiff() {
           hAxis: {title: 'Day',  titleTextStyle: {color: '#333'}},
           vAxis: {minValue: 0}
         };
-        var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
+        var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
         chart.draw(data, options);
       }
     </script>
