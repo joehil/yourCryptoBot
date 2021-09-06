@@ -2427,14 +2427,14 @@ func btcReference(){
                 fmt.Printf("SQL error: %v\n",err)
         }
 
-	if (trend1 < -0.4) && (trend2 < -0.4) && (trend3 < -0.4) {
-		submitTelegram("BTC is falling, trading should be paused\n")
-		fmt.Println("BTC is falling, trading should be paused")
+	if ((trend1 < -0.4) && (trend2 < -0.4) && (trend3 < -0.4)) || (trend1 < -2) {
+		submitTelegram("BTC is falling, buying is paused\n")
+		fmt.Println("BTC is falling, buying is paused")
 		insertParms("btcfall", 1, float64(0), "", time.Now(), time.Now(), time.Now())
 	}
         if (trend1 > 0) && (trend2 > 0) && (trend3 > 0) {
-                submitTelegram("BTC is rising, trading should be started\n")
-                fmt.Println("BTC is rising, trading should be started")
+                submitTelegram("BTC is rising, buying is started\n")
+                fmt.Println("BTC is rising, buying is started")
 		deleteParms("btcfall")
         }
 }
@@ -2525,7 +2525,6 @@ func writeSumAll(){
 func writeDiff() {
         var sum float64
 	var valdate time.Time
-//	var olddate time.Time
 	var parmstr string
 	var docomma bool = false
 	var out string
@@ -2565,7 +2564,6 @@ func writeDiff() {
         defer rows.Close()
 
 	parmstr = ""
-//	olddate = time.Date(2009, 11, 17, 0, 0, 0, 0, time.UTC)
 
         for rows.Next(){
                 if err := rows.Scan(&valdate, &sum); err != nil {
