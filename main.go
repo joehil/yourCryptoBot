@@ -56,9 +56,6 @@ var tradepairs []string
 var gctcmd string
 var wwwpath string
 
-var gctuser string
-var gctpassword string
-
 var pguser string
 var pgpassword string
 var pgdb string
@@ -733,7 +730,7 @@ func deleteCandles() {
 }
 
 func getPair(p string, s string, e string) []byte {
-        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "gethistoriccandlesextended",
+        out, err := exec.Command(gctcmd, "gethistoriccandlesextended",
         "-e",exchange_name,"-a","SPOT","-p",p,"-i","900",
         "--start",s,"--end",e).Output()
         if err != nil {
@@ -743,7 +740,7 @@ func getPair(p string, s string, e string) []byte {
 }
 
 func getAccount() []byte {
-        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getaccountinfo",
+        out, err := exec.Command(gctcmd, "getaccountinfo",
         "--exchange",exchange_name,"--asset","SPOT").Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
@@ -752,7 +749,7 @@ func getAccount() []byte {
 }
 
 func getOrder(pair string,id string) []byte {
-        cmd := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getorder",
+        cmd := exec.Command(gctcmd, "getorder",
         "--exchange",exchange_name,"--asset","SPOT","--pair",pair,"--order_id",id)
 	out, err := cmd.Output()
         if err != nil {
@@ -763,7 +760,7 @@ func getOrder(pair string,id string) []byte {
 }
 
 func getOrders(pair string) []byte {
-        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getorders",
+        out, err := exec.Command(gctcmd, "getorders",
         "--exchange",exchange_name,"--asset","SPOT","--pair",pair).Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
@@ -786,7 +783,7 @@ func submitOrder(pair string,side string,otype string,amount float64,price float
 
 	fmt.Printf("A: %s, P: %s\n",stramount,strprice)
 
-        cmd := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "submitorder",
+        cmd := exec.Command(gctcmd, "submitorder",
         "--exchange",exchange_name,"--asset","SPOT","--pair",pair,"--side",side,"--type",otype,
 	"--amount",stramount,"--price",strprice,"--client_id",clientid)
 	out, err := cmd.Output()
@@ -815,7 +812,7 @@ func submitOrder(pair string,side string,otype string,amount float64,price float
 }
 
 func cancelOrder(pair string,oid string) []byte {
-        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "cancelorder",
+        out, err := exec.Command(gctcmd, "cancelorder",
         "--exchange",exchange_name,"--asset","SPOT","--pair",pair,"--order_id",oid).Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
@@ -1224,9 +1221,6 @@ func read_config() {
 	gctcmd = viper.GetString("gctcmd")
 
         wwwpath = viper.GetString("wwwpath")
-
-	gctuser = viper.GetString("gctuser")
-        gctpassword = viper.GetString("gctpassword")
 
         pguser = viper.GetString("pguser")
         pgpassword = viper.GetString("pgpassword")
@@ -2107,7 +2101,7 @@ func runTicker(pair string, side string, limitstr string, currentstr string, amo
 
 	var i int64 = 0
 	for i < 860 && done == false {
-	        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "getticker",
+	        out, err := exec.Command(gctcmd, "getticker",
 	        "--exchange",exchange_name,"--asset","SPOT","--pair",pair).Output()
 	        if err != nil {
 	                fmt.Printf("Command finished with error: %v", err)
@@ -2210,7 +2204,7 @@ func storeTransactions(pair string, amount float64, amount_quote float64, price 
 
 func getTransactionsAll() {
         var transactions []interface{}
-        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "gettransactions",
+        out, err := exec.Command(gctcmd, "gettransactions",
         "-e",exchange_name,"-a","SPOT").Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
@@ -2241,7 +2235,7 @@ func getTransactionsAll() {
 
 func getTransaction(pair string) {
 	var transactions []interface{}
-        out, err := exec.Command(gctcmd, "--rpcuser", gctuser, "--rpcpassword", gctpassword, "gettransactions",
+        out, err := exec.Command(gctcmd, "gettransactions",
         "-e",exchange_name,"-a","SPOT","--pair",pair).Output()
         if err != nil {
                 fmt.Printf("Command finished with error: %v", err)
