@@ -142,6 +142,7 @@ func main() {
 				btcReference()
 			}
 			deleteAccounts()
+			deleteOldOrders()
 			readAccount()
 			readOrders()
 			processOrders()
@@ -162,6 +163,7 @@ func main() {
                         os.Exit(0)
                 }
                 if a1 == "report" {
+			deleteOldSum()
                         calculateSum()
 			writeReport()
 			writeSumAll()
@@ -706,6 +708,43 @@ func deleteOrders() {
 	where status in ('CANCELLED','CANCELED','REJECTED')
 	AND LOWER(exchange) = $1;`
         _, err = db.Exec(sqlStatement,exchange_name)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+}
+
+func deleteOldOrders() {
+        fmt.Println("Delete old orders")
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        delete from yourorder
+        where "timestamp" < current_timestamp - interval '30 days'
+	AND LOWER(exchange) = $1;`
+        _, err = db.Exec(sqlStatement,exchange_name)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+}
+
+func deleteOldSum() {
+        fmt.Println("Delete old sums")
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, err := sql.Open("postgres", psqlconn)
+        CheckError(err)
+
+        defer db.Close()
+
+        sqlStatement := `
+        delete from yoursum
+        where valdate < current_date - interval '30 days';`
+        _, err = db.Exec(sqlStatement)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
