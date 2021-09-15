@@ -65,6 +65,7 @@ var limit_depth int
 var invest_amount int
 var minwin int
 var useticker bool = false
+var usezerostrategy bool = false
 var bullstrategy bool = false
 var bullwin int
 var bulltrend float64 = 1
@@ -957,6 +958,9 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
                 } else if (current >= min) && (trend2 < 0.7) && (trend2 > -0.7) && (trend1 > 0.1) {
                         dobuy = true
                         fmt.Println("Rule 3")
+                } else if (usezerostrategy) && (trend1 == 0) {
+                        dobuy = true
+                        fmt.Println("Rule 4")
                 } else {
                         fmt.Println("wait due to trend")
 			if useticker {
@@ -1037,6 +1041,9 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
                 if trend1 < 0.1 {
                         dosell = true
                         fmt.Println("Rule 1")
+                } else if (usezerostrategy) && (trend1 == 0) {
+                        dosell = true
+                        fmt.Println("Rule 2")
                 }
                 if dosell {
                         amount = amnt
@@ -1279,6 +1286,7 @@ func read_config() {
         minwin = viper.GetInt("minwin")
 
 	useticker = viper.GetBool("useticker")
+        usezerostrategy = viper.GetBool("usezerostrategy")
         bullstrategy = viper.GetBool("bullstrategy")
         bullwin = viper.GetInt("bullwin")
         bulltrend = viper.GetFloat64("bulltrend")
