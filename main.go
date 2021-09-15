@@ -609,23 +609,25 @@ func updateStats() {
 
         defer db.Close()
 
-        sqlStatement := `
-	WITH subquery AS (
-	select close, pair, ((close - open) * 100 / open) as lastcandle from yourcandle y 
-	where timestamp =
-	(select max(timestamp) from yourcandle where LOWER(exchange) = $1)
-	AND LOWER(exchange) = $1
-	)
-	UPDATE yourlimits l
-	SET current = subquery.close,
-	lastcandle = subquery.lastcandle
-	FROM subquery
-	WHERE l.pair = subquery.pair
-	AND LOWER(l.exchange) = $1;`
-        _, err = db.Exec(sqlStatement,exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	for _, v := range pairs {
+        	sqlStatement := `
+		WITH subquery AS (
+		select close, pair, ((close - open) * 100 / open) as lastcandle from yourcandle y 
+		where timestamp =
+		(select max(timestamp) from yourcandle where LOWER(exchange) = $1 and pair = $2)
+		AND LOWER(exchange) = $1 and pair = $2
+		)
+		UPDATE yourlimits l
+		SET current = subquery.close,
+		lastcandle = subquery.lastcandle
+		FROM subquery
+		WHERE l.pair = subquery.pair
+		AND LOWER(l.exchange) = $1;`
+        	_, err = db.Exec(sqlStatement,exchange_name,v)
+        	if err != nil {
+                	fmt.Printf("SQL error: %v\n",err)
+        	}
+	}
 }
 
 func calculateLimit() {
@@ -1419,8 +1421,8 @@ func trend1(pair string) {
         select "timestamp", "close"  from yourcandle
         where pair = $1
 	AND LOWER(exchange) = $2
-        and "timestamp" > current_timestamp - interval '1 hour'
-	order by "timestamp";`
+        and "timestamp" > current_timestamp - interval '4 hour'
+	order by "timestamp" desc;`
 
         rows, err := db.Query(sqlStatement, pair, exchange_name)
         if err != nil {
@@ -1429,7 +1431,7 @@ func trend1(pair string) {
         defer rows.Close()
 
 	var i int = 0;
-        for rows.Next(){
+        for rows.Next() && i < 3{
                 var tmstamp time.Time
 		var tmu int64
                 if err := rows.Scan(&tmstamp, &cls); err != nil {
