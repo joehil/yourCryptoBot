@@ -20,24 +20,20 @@ package main
 
 import (
 	"os"
-//	"os/exec"
 	"fmt"
 	flag "github.com/spf13/pflag"
 	"time"
 	"strings"
-//  	"strconv"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
 	"net/url"
-/*	"syscall"
-	"bytes"
-	"math"
-	"io/ioutil" */
 	"encoding/json" 
 	"github.com/go-resty/resty/v2"
 	"github.com/spf13/viper"
+  	"database/sql"
+    	_ "github.com/lib/pq"
 )
 
 var pipeFile = "/tmp/yourpipe"
@@ -274,17 +270,6 @@ func getKrakenSignature(url_path string, values url.Values, secret []byte) strin
   return base64.StdEncoding.EncodeToString(macsum)
 }
 
-func convCurr(curr string) string {
-var c string = curr
-if curr == "ETHEUR" {
-        c ="XETHZEUR"
-}
-if curr == "XRPEUR" {
-        c ="XXRPZEUR"
-}
-return c
-}
-
 func myUsage() {
 
 }
@@ -325,6 +310,8 @@ if err != nil {
 	fmt.Println(err)
 	return
 }
+
+traceLog(resp.String())
 
 err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors 
@@ -728,4 +715,19 @@ out += "]"
 
 fmt.Println(out)
 
+}
+
+func traceLog(text string) {
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, _ := sql.Open("postgres", psqlconn)
+//        CheckError(err)
+
+        defer db.Close()
+
+	sqlStatement := `
+	INSERT INTO yourtrace (
+	timest, exchange, log)
+	VALUES ($1, $2, $3)`
+	_, _ = db.Exec(sqlStatement, time.Now(), exchange_name, text)
 }
