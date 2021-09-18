@@ -311,7 +311,7 @@ if err != nil {
 	return
 }
 
-traceLog(resp.String())
+//traceLog(resp.String())
 
 err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors 
