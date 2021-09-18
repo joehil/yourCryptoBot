@@ -2452,6 +2452,12 @@ func btcReference(){
         var trend2 float64
         var trend3 float64
         var lastcandle float64
+	var btcf bool = false
+
+        _,err := getParms("btcfall")
+        if err == nil {
+                btcf = true
+        }
 
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
@@ -2470,12 +2476,12 @@ func btcReference(){
                 fmt.Printf("SQL error: %v\n",err)
         }
 
-	if ((trend1 < -0.4) && (trend2 < -0.4) && (trend3 < -0.4)) || (trend1 < -2) {
+	if ((btcf == false) && (trend1 < -0.4) && (trend2 < -0.4) && (trend3 < -0.4)) || (trend1 < -2) {
 		submitTelegram("BTC is falling, buying is paused\n")
 		fmt.Println("BTC is falling, buying is paused")
 		insertParms("btcfall", 1, float64(0), "", time.Now(), time.Now(), time.Now())
 	}
-        if (trend1 > 0) && (trend2 > 0) && (trend3 > 0) {
+        if (btcf == true) && (trend1 > 0) && (trend2 > 0) && (trend3 > 0) {
                 submitTelegram("BTC is rising, buying is started\n")
                 fmt.Println("BTC is rising, buying is started")
 		deleteParms("btcfall")
