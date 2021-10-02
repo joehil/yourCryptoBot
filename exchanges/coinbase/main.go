@@ -37,11 +37,14 @@ import (
 	"encoding/json" 
 	"github.com/go-resty/resty/v2"
 	"github.com/spf13/viper"
+  	"database/sql"
+    	_ "github.com/lib/pq"
 )
 
 var pipeFile = "/tmp/yourpipe"
 
 var do_trace bool = true
+var ticker_trace bool = false
 
 var exchange_name string
 
@@ -213,6 +216,7 @@ func read_config() {
         tradepairs = viper.GetStringSlice("tradepairs")
 
         do_trace = viper.GetBool("do_trace")
+	ticker_trace = viper.GetBool("ticker_trace")
 
         exchange_name = viper.GetString("exchange_name")
 
@@ -644,6 +648,9 @@ if err != nil {
 }
 
 //fmt.Println(resp.String())
+if ticker_trace {
+      traceLog(resp.String())
+}
 
 err = json.Unmarshal(resp.Body(), &order)
 if err != nil { // Handle JSON errors
@@ -776,4 +783,19 @@ out += "]"
 
 fmt.Println(out)
 
+}
+
+func traceLog(text string) {
+        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        db, _ := sql.Open("postgres", psqlconn)
+//        CheckError(err)
+
+        defer db.Close()
+
+	sqlStatement := `
+	INSERT INTO yourtrace (
+	timest, exchange, log)
+	VALUES ($1, $2, $3)`
+	_, _ = db.Exec(sqlStatement, time.Now(), exchange_name, text)
 }
