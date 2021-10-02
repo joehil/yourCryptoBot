@@ -2099,7 +2099,7 @@ func activatePosition(pair string) {
         (select current from yourlimits l
         where LOWER(l.exchange) = $1
         and l.pair = $2))
-	order by rate desc
+	order by rate 
 	limit 1);`
         _, err = db.Exec(sqlStatement,exchange_name,pair)
         if err != nil {
@@ -2476,7 +2476,7 @@ func btcReference(){
                 fmt.Printf("SQL error: %v\n",err)
         }
 
-	if ((btcf == false) && (trend1 < -0.4) && (trend2 < -0.4) && (trend3 < -0.4)) || (trend1 < -2) {
+	if (btcf == false) && (((trend1 < -0.4) && (trend2 < -0.4) && (trend3 < -0.4)) || (trend1 < -2)) {
 		submitTelegram("BTC is falling, buying is paused\n")
 		fmt.Println("BTC is falling, buying is paused")
 		insertParms("btcfall", 1, float64(0), "", time.Now(), time.Now(), time.Now())
