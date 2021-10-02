@@ -39,6 +39,7 @@ import (
 var pipeFile = "/tmp/yourpipe"
 
 var do_trace bool = true
+var ticker_trace bool = false
 
 var exchange_name string
 
@@ -210,6 +211,7 @@ func read_config() {
         tradepairs = viper.GetStringSlice("tradepairs")
 
         do_trace = viper.GetBool("do_trace")
+	ticker_trace = viper.GetBool("ticker_trace")
 
         exchange_name = viper.GetString("exchange_name")
 
@@ -311,7 +313,9 @@ if err != nil {
 	return
 }
 
-//traceLog(resp.String())
+//if ticker_trace {
+//	traceLog(resp.String())
+//}
 
 err = json.Unmarshal(resp.Body(), &data)
 if err != nil { // Handle JSON errors 
@@ -593,6 +597,9 @@ if err != nil {
 }
 
 //fmt.Println(resp.String())
+if ticker_trace {
+      traceLog(resp.String())
+}
 
 err = json.Unmarshal(resp.Body(), &order)
 if err != nil { // Handle JSON errors
