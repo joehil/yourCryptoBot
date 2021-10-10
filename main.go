@@ -1013,11 +1013,14 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
         defer db.Close()
 
         sqlStatement := `
-        select l.limitsell, l.current, l.max, l.trend1, l.trend2, l.trend3, p.rate, p.amount*0.995 as amount from yourlimits l, yourposition p 
+        select l.limitsell, l.current, l.max, l.trend1, l.trend2, l.trend3, p.rate, least(p.amount,a.amount)*0.995 as amount 
+	from yourlimits l, yourposition p, youraccount a 
         where l.pair = $1
 	AND LOWER(l.exchange) = $2
         and p.pair = $1
 	AND LOWER(p.exchange) = $2
+	and a.currency = split_part($1, '-', 1)
+	and LOWER(a.exchange) = $2
 	AND p.active = true
 	AND notrade = false;`
 
