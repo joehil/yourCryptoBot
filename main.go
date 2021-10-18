@@ -46,6 +46,7 @@ var pipeFile = "/tmp/yourpipe"
 var do_trace bool = true
 var btcref bool = false
 var sleepbeforerun int
+var sell_days int64
 
 var exchange_name string
 var curr_quote string = "EUR"
@@ -153,6 +154,7 @@ func main() {
 			sellOrders()
                         deactivatePositions()
 			activatePositions()
+			decreasePositionRates()
 			os.Exit(0)
         	}
                 if a1 == "sell" {
@@ -1308,6 +1310,13 @@ func read_config() {
                 bulltrend = float64(parm.floatp)
         }
 
+        parm,err = getParms("sell_days")
+        if err == nil {
+                sell_days = int64(parm.intp)
+        } else {
+		sell_days = 0
+	}
+
         parm,err = getParms("limit_depth")
         if err == nil {
                 limit_depth = int(parm.intp)
@@ -2214,7 +2223,7 @@ func isEnoughMoney() bool {
 }
 
 func jhtest() {
-	writeReport()
+	decreasePositionRates()
 }
 
 func storeTransactions(pair string, amount float64, amount_quote float64, price float64, timest string, fee float64, id string) {
@@ -2655,4 +2664,30 @@ func writeDiff() {
 </html>
  `
         _, err = f.WriteString(out)
+}
+
+func decreasePositionRates() {
+	if sell_days > 0 {
+		fmt.Println("Decrease position rates")
+		intv := fmt.Sprintf("'%d days'",sell_days)
+        	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+
+        	db, err := sql.Open("postgres", psqlconn)
+        	CheckError(err)
+
+        	defer db.Close()
+
+        	sqlStatement := `
+		update yourposition
+		set timestamp = current_timestamp,
+		rate = rate * 0.9
+		where timestamp < current_timestamp - interval ` + intv + `
+		and LOWER(exchange) = $1
+		and notrade = false;
+		`
+        	_, err = db.Exec(sqlStatement,exchange_name)
+        	if err != nil {
+                	fmt.Printf("SQL error: %v\n",err)
+        	}
+	}
 }
