@@ -584,6 +584,9 @@ payload := `{
 }`
 
 //fmt.Println(payload)
+if ticker_trace {
+      traceLog(payload)
+}
 
 resp, err := client.R().
         SetBody(payload).
