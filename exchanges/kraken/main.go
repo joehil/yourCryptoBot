@@ -290,6 +290,23 @@ if curr == "XRPEUR" {
 return c
 }
 
+func convCurrency(curr string) string {
+var c string = curr
+if curr == "XETH" {
+        c ="ETH"
+}
+if curr == "XXRP" {
+        c ="XRP"
+}
+if curr == "XXLM" {
+        c ="XLM"
+}
+if curr == "ZEUR" {
+        c ="EUR"
+}
+return c
+}
+
 func myUsage() {
 
 }
@@ -448,7 +465,7 @@ if err != nil { // Handle JSON errors
 accounts = data["result"].(map[string]interface{})
 
 for key, account := range accounts {
-	fmt.Printf("\"currency\": \"%s\",\n",key)
+	fmt.Printf("\"currency\": \"%s\",\n",convCurrency(key))
         fmt.Printf("\"total_value\": %s,\n",account)
 }
 
@@ -637,6 +654,11 @@ payload.Add("volume",aFlag)
 b64DecodedSecret, _ := base64.StdEncoding.DecodeString(apisecret)
 
 signature := getKrakenSignature("/0/private/AddOrder", payload, b64DecodedSecret)
+
+//fmt.Println(payload.Encode())
+if ticker_trace {
+      traceLog(payload.Encode())
+}
 
 resp, err := client.R().
         SetBody(payload.Encode()).
