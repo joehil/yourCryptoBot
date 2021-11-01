@@ -2359,7 +2359,7 @@ func writeReport() {
 
         sqlStatement := `
         select exchange,valdate, sum from yoursum
-        where valdate > current_date - interval '30 days'
+        where valdate > current_date - interval '35 days'
         order by valdate, exchange;`
 
         rows, err := db.Query(sqlStatement)
