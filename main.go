@@ -748,7 +748,7 @@ func deleteOldSum() {
 
         sqlStatement := `
         delete from yoursum
-        where valdate < current_date - interval '30 days';`
+        where valdate < current_date - interval '35 days';`
         _, err = db.Exec(sqlStatement)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
@@ -766,7 +766,7 @@ func deleteCandles() {
 
         sqlStatement := `
         delete from yourcandle
-        where "timestamp" < current_timestamp - interval '30 days'`
+        where "timestamp" < current_timestamp - interval '35 days'`
         _, err = db.Exec(sqlStatement)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
@@ -1983,7 +1983,7 @@ func writeChart(pair string) {
         select "timestamp", "close"  from yourcandle
         where pair = $1
 	and LOWER(exchange) = $2
-        and "timestamp" > current_timestamp - interval '30 days'
+        and "timestamp" > current_timestamp - interval '35 days'
         order by "timestamp";`
 
         rows, err := db.Query(sqlStatement,pair,exchange_name)
