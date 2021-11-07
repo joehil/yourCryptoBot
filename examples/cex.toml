@@ -1,0 +1,91 @@
+# do a trace (get more output to log), true or false
+do_trace = false
+
+# trace ticker into db table yourtrace
+ticker_trace = true
+
+# sleep before candles are fetched
+sleepbeforerun = 20
+
+# location of gctcli command
+gctcmd = "/home/pi/git/yourCryptoBot/exchanges/cex/cex"
+
+wwwpath = "/var/www/html/"
+
+# quote currency
+curr_quote = "EUR"
+
+pguser = ""
+pgpassword = ""
+pgdb = "yourBot"
+
+tbtoken = ""
+
+key_issuer = ""
+key_account = ""
+key_secret = ""
+
+apikey = ""
+apisecret = ""
+apiclient = ""
+
+# name of exchange
+exchange_name = "cex"
+
+# list of pairs
+pairs = [
+  "ETH-EUR",
+  "XLM-EUR",
+  "TRX-EUR",
+  "XRP-EUR",
+  "XTZ-EUR",
+  "MATIC-EUR"
+]
+
+#list of pairs to trade
+tradepairs = [
+  "ETH-EUR",
+  "XLM-EUR",
+  "TRX-EUR",
+  "XRP-EUR",
+  "XTZ-EUR",
+  "MATIC-EUR"
+]
+
+#amount to invest
+invest_amount = 80
+
+#percent of potential win
+limit_depth = 70
+
+#mininum win in %
+minwin = 2
+
+#use tickers
+useticker = true
+
+#use zerostrategy
+usezerostrategy = false
+
+#use strategy for rising markets
+bullstrategy = false
+bullwin = 1
+bulltrend = 0.6
+
+#comma amount
+[amountcomma]
+ETH-EUR = "5"
+XLM-EUR = "5"
+TRX-EUR = "5"
+XRP-EUR = "5"
+XTZ-EUR = "6"
+MATIC-EUR = "5"
+
+#price amount
+[pricecomma]
+ETH-EUR = "2"
+XLM-EUR = "5"
+TRX-EUR = "5"
+XRP-EUR = "5"
+XTZ-EUR = "4"
+MATIC-EUR = "5"

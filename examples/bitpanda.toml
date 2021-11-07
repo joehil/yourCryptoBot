@@ -1,0 +1,103 @@
+# do a trace (get more output to log), true or false
+do_trace = false
+
+# trace ticker into db table yourtrace
+ticker_trace = true
+
+# sleep before candles are fetched
+sleepbeforerun = 15
+
+# location of gctcli command
+gctcmd = "/home/pi/git/yourCryptoBot/exchanges/bitpanda/bitpanda"
+
+wwwpath = "/var/www/html/"
+
+# quote currency
+curr_quote = "EUR"
+
+pguser = ""
+pgpassword = ""
+pgdb = "yourBot"
+
+tbtoken = ""
+
+key_issuer = ""
+key_account = ""
+key_secret = ""
+
+apikey = ""
+apisecret = ""
+apiclient = ""
+
+# name of exchange
+exchange_name = "bitpanda"
+
+# list of pairs
+pairs = [
+  "DOGE-EUR",
+  "MIOTA-EUR",
+  "BEST-EUR",
+  "CHZ-EUR",
+  "ETH-EUR",
+  "XRP-EUR",
+  "ADA-EUR",
+  "XLM-EUR",
+  "LINK-EUR"
+]
+
+#list of pairs to trade
+tradepairs = [
+  "DOGE-EUR",
+  "MIOTA-EUR",
+  "BEST-EUR",
+  "CHZ-EUR",
+  "ETH-EUR",
+  "XRP-EUR",
+  "ADA-EUR",
+  "XLM-EUR",
+  "LINK-EUR"
+]
+
+#amount to invest
+invest_amount = 100
+
+#percent of potential win
+limit_depth = 70
+
+#mininum win in %
+minwin = 2
+
+#use tickers
+useticker = true
+
+#use zerostrategy
+usezerostrategy = true
+
+#use strategy for rising markets
+bullstrategy = false
+bullwin = 1
+bulltrend = 0.8
+
+#comma amount
+[amountcomma]
+DOGE-EUR = "0"
+ADA-EUR = "3"
+XRP-EUR = "0"
+ETH-EUR = "4"
+CHZ-EUR = "2"
+BEST-EUR = "0"
+LINK-EUR = "2"
+MIOTA-EUR = "0"
+XLM-EUR = "1"
+
+#price amount
+[pricecomma]
+DOGE-EUR = "5"
+ADA-EUR = "4"
+XRP-EUR = "5"
+ETH-EUR = "2"
+CHZ-EUR = "5"
+BEST-EUR = "5"
+LINK-EUR = "5"
+MIOTA-EUR = "5"
+XLM-EUR = "5"

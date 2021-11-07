@@ -1,0 +1,147 @@
+# do a trace (get more output to log), true or false
+do_trace = false
+
+# sleep before candles are fetched
+sleepbeforerun = 0
+
+# location of gctcli command
+gctcmd = "/home/pi/git/yourCryptoBot/exchanges/bitstamp/bitstamp"
+
+wwwpath = "/var/www/html/"
+
+# quote currency
+curr_quote = "EUR"
+
+pguser = ""
+pgpassword = ""
+pgdb = "yourBot"
+
+tbtoken = ""
+
+key_issuer = ""
+key_account = ""
+key_secret = ""
+
+apikey = ""
+apisecret = ""
+apiclient = ""
+
+# name of exchange
+exchange_name = "bitstamp"
+
+# list of pairs
+pairs = [
+  "ETH-EUR",
+  "XRP-EUR",
+  "UNI-EUR",
+  "LINK-EUR",
+  "XLM-EUR",
+  "AAVE-EUR",
+  "ALGO-EUR",
+  "OMG-EUR",
+  "AUDIO-EUR",
+  "AXS-EUR",
+  "CRV-EUR",
+  "HBAR-EUR",
+  "CHZ-EUR",
+  "ENJ-EUR",
+  "BAT-EUR",
+  "MKR-EUR",
+  "ZRX-EUR",
+  "STORJ-EUR",
+  "UMA-EUR",
+  "KNC-EUR",
+  "SAND-EUR"
+]
+
+#list of pairs to trade
+tradepairs = [
+  "ETH-EUR",
+  "XRP-EUR",
+  "XLM-EUR",
+  "LINK-EUR",
+  "AUDIO-EUR",
+  "AAVE-EUR",
+  "OMG-EUR",
+  "ALGO-EUR",
+  "UNI-EUR",
+  "AXS-EUR",
+  "CRV-EUR",
+  "HBAR-EUR",
+  "CHZ-EUR",
+  "ENJ-EUR",
+  "BAT-EUR",
+  "MKR-EUR",
+  "ZRX-EUR",
+  "STORJ-EUR",
+  "UMA-EUR",
+  "KNC-EUR",
+  "SAND-EUR"
+]
+
+#amount to invest
+invest_amount = 100
+
+#percent of potential win
+limit_depth = 70
+
+#mininum win in %
+minwin = 2
+
+#use tickers
+useticker = true
+
+#use zerostrategy
+usezerostrategy = true
+
+#use strategy for rising markets
+bullstrategy = false
+bullwin = 1
+
+#comma amount
+[amountcomma]
+XRP-EUR = "2"
+ETH-EUR = "4"
+XLM-EUR = "4"
+LINK-EUR = "4"
+AUDIO-EUR = "4"
+AAVE-EUR = "4"
+OMG-EUR = "4"
+ALGO-EUR = "4"
+UNI-EUR = "4"
+AXS-EUR = "3"
+CRV-EUR = "8"
+HBAR-EUR = "8"
+CHZ-EUR = "8"
+ENJ-EUR = "8"
+BAT-EUR = "8"
+MKR-EUR = "8"
+ZRX-EUR = "8"
+STORJ-EUR = "8"
+UMA-EUR = "8"
+KNC-EUR = "8"
+SAND-EUR = "8"
+
+#price amount
+[pricecomma]
+XRP-EUR = "4"
+XLM-EUR = "4"
+ETH-EUR = "2"
+LINK-EUR = "2"
+AUDIO-EUR = "4"
+AAVE-EUR = "2"
+OMG-EUR = "2"
+ALGO-EUR = "4"
+UNI-EUR = "4"
+AXS-EUR = "3"
+CRV-EUR = "5"
+HBAR-EUR = "5"
+CHZ-EUR = "5"
+ENJ-EUR = "5"
+BAT-EUR = "5"
+MKR-EUR = "5"
+ZRX-EUR = "5"
+STORJ-EUR = "5"
+UMA-EUR = "5"
+KNC-EUR = "5"
+SAND-EUR = "5"

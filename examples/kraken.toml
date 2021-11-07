@@ -1,0 +1,122 @@
+# do a trace (get more output to log), true or false
+do_trace = false
+
+# trace ticker into db table yourtrace
+ticker_trace = true
+
+# sleep before candles are fetched
+sleepbeforerun = 0
+
+# location of gctcli command
+gctcmd = "/home/pi/git/yourCryptoBot/exchanges/kraken/kraken"
+
+wwwpath = "/var/www/html/"
+
+# quote currency
+curr_quote = "EUR"
+
+pguser = ""
+pgpassword = ""
+pgdb = "yourBot"
+
+tbtoken = ""
+
+key_issuer = ""
+key_account = ""
+key_secret = ""
+
+apikey = ""
+apisecret = ""
+apiclient = ""
+
+# name of exchange
+exchange_name = "kraken"
+
+# list of pairs
+pairs = [
+  "ADA-EUR",
+  "ETH-EUR",
+  "DOT-EUR",
+  "TRX-EUR",
+  "XRP-EUR",
+  "WAVES-EUR",
+  "DASH-EUR",
+  "SNX-EUR",
+  "GRT-EUR",
+  "FLOW-EUR",
+  "ATOM-EUR",
+  "MATIC-EUR",
+  "MOVR-EUR",
+  "ALGO-EUR"
+]
+
+#list of pairs to trade
+tradepairs = [
+  "ADA-EUR",
+  "ETH-EUR",
+  "DOT-EUR",
+  "TRX-EUR",
+  "XRP-EUR",
+  "WAVES-EUR",
+  "DASH-EUR",
+  "SNX-EUR",
+  "GRT-EUR",
+  "FLOW-EUR",
+  "MOVR-EUR",
+  "ATOM-EUR",
+  "MATIC-EUR",
+  "ALGO-EUR"
+]
+
+#amount to invest
+invest_amount = 120
+
+#percent of potential win
+limit_depth = 70
+
+#mininum win in %
+minwin = 2
+
+#use tickers
+useticker = true
+
+#use zerostrategy
+usezerostrategy = true
+
+#use strategy for rising markets
+bullstrategy = false
+bullwin = 1
+
+#comma amount
+[amountcomma]
+ADA-EUR = "4"
+DOT-EUR = "3"
+XRP-EUR = "2"
+ETH-EUR = "5"
+GRT-EUR = "2"
+TRX-EUR = "4"
+DASH-EUR = "4"
+SNX-EUR = "4"
+WAVES-EUR = "3"
+FLOW-EUR = "8"
+MOVR-EUR = "4"
+ATOM-EUR = "8"
+MATIC-EUR = "8"
+ALGO-EUR = "8"
+
+#price amount
+[pricecomma]
+ADA-EUR = "4"
+DOT-EUR = "3"
+XRP-EUR = "4"
+ETH-EUR = "2"
+GRT-EUR = "4"
+TRX-EUR = "4"
+DASH-EUR = "3"
+SNX-EUR = "3"
+WAVES-EUR = "3"
+FLOW-EUR = "3"
+MOVR-EUR = "4"
+ATOM-EUR = "4"
+MATIC-EUR = "4"
+ALGO-EUR = "5"
