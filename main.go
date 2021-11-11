@@ -962,7 +962,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
                 } else if (current >= min) && (trend2 < 0.7) && (trend2 > -0.7) && (trend1 > 0.1) {
                         dobuy = true
                         fmt.Println("Rule 3")
-                } else if (usezerostrategy) && (trend1 == 0) {
+                } else if (usezerostrategy) && (math.Abs(trend1) < 0.03) {
                         dobuy = true
                         fmt.Println("Rule 4")
                 } else {
@@ -1048,7 +1048,7 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
                 if trend1 < 0.1 {
                         dosell = true
                         fmt.Println("Rule 1")
-                } else if (usezerostrategy) && (trend1 == 0) {
+                } else if (usezerostrategy) && (math.Abs(trend1) < 0.03) {
                         dosell = true
                         fmt.Println("Rule 2")
                 }
