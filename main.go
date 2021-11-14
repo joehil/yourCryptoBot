@@ -53,6 +53,7 @@ var curr_quote string = "EUR"
 
 var pairs []string
 var tradepairs []string
+var nobuypairs []string
 
 var gctcmd string
 var wwwpath string
@@ -917,6 +918,11 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 	price = 0
 	amount = 0
 
+        if arrayContains(nobuypairs,pair) {
+                fmt.Println("Nobuyflag set for this pair")
+                return
+        }
+
         fmt.Printf("Get buy price %v\n",pair)
         psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
@@ -1263,6 +1269,7 @@ func read_config() {
 
         pairs = viper.GetStringSlice("pairs")
         tradepairs = viper.GetStringSlice("tradepairs")
+        nobuypairs = viper.GetStringSlice("nobuypairs")
 
         do_trace = viper.GetBool("do_trace")
         btcref = viper.GetBool("btcref")
@@ -2690,4 +2697,13 @@ func decreasePositionRates() {
                 	fmt.Printf("SQL error: %v\n",err)
         	}
 	}
+}
+
+func arrayContains(arr []string, str string) bool {
+        for _, a := range arr {
+           if a == str {
+              return true
+           }
+        }
+        return false
 }
