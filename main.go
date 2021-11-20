@@ -1281,6 +1281,7 @@ func read_config() {
 	gctcmd = viper.GetString("gctcmd")
 
         wwwpath = viper.GetString("wwwpath")
+        pipeFile = viper.GetString("pipefile")
 
         pguser = viper.GetString("pguser")
         pgpassword = viper.GetString("pgpassword")
