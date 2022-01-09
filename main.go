@@ -2347,6 +2347,7 @@ func writeReport() {
 	var parmstr string
 	var docomma bool = false
 	var out string
+        var header string
 
         fmt.Println("Write report")
 
@@ -2366,11 +2367,32 @@ func writeReport() {
         defer db.Close()
 
         sqlStatement := `
+	select DISTINCT exchange
+	FROM yoursum
+	ORDER BY exchange ;`
+
+	header = `['Day'`;
+
+        rows, err := db.Query(sqlStatement)
+        if err != nil {
+                fmt.Printf("SQL error: %v\n",err)
+        }
+        defer rows.Close()
+
+        for rows.Next(){
+                if err := rows.Scan(&exchange); err != nil {
+                        fmt.Println(err)
+                }
+		header += ", '" + exchange + "'";
+        }
+	header += "],\n";
+
+        sqlStatement = `
         select exchange,valdate, sum from yoursum
         where valdate > current_date - interval '35 days'
         order by valdate, exchange;`
 
-        rows, err := db.Query(sqlStatement)
+        rows, err = db.Query(sqlStatement)
         if err != nil {
                 fmt.Printf("SQL error: %v\n",err)
         }
@@ -2406,9 +2428,9 @@ func writeReport() {
       google.charts.setOnLoadCallback(drawChart);
 
       function drawChart() {
-        var data = google.visualization.arrayToDataTable([
-          ['Day', 'Binance', 'Bitpanda', 'Bitstamp', 'Cex', 'Coinbase', 'Crypto', 'Kraken'],`+ parmstr + `
-         ]);
+        var data = google.visualization.arrayToDataTable([` +
+            header + parmstr +
+         `]);
 
         var options = {
           title: 'Exchange Performance',
