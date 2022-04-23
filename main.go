@@ -19,26 +19,27 @@ SOFTWARE. */
 package main
 
 import (
-	"os"
-	"os/exec"
-	"fmt"
 	"bufio"
-	"time"
-	"strings"
-	"strconv"
-	"syscall"
 	"bytes"
-	"math"
+	"database/sql"
+	"encoding/json"
+	"fmt"
 	"image/png"
 	"io/ioutil"
-	"github.com/go-telegram-bot-api/telegram-bot-api"
-	"encoding/json" 
+	"math"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+	"syscall"
+	"time"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	_ "github.com/lib/pq"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
-	"github.com/spf13/viper"
 	"github.com/sajari/regression"
-    	"database/sql"
-    	_ "github.com/lib/pq"
+	"github.com/spf13/viper"
 )
 
 var pipeFile = "/tmp/yourpipe"
@@ -80,59 +81,59 @@ var key_account string
 var key_secret string
 
 type Parm struct {
-	key string
-	intp int64
-	floatp float64
-	stringp string
-	datep time.Time
-	timep time.Time
+	key        string
+	intp       int64
+	floatp     float64
+	stringp    string
+	datep      time.Time
+	timep      time.Time
 	timestampp time.Time
 }
 
 type Order struct {
-        exchange string
-        id string
-        base_currency string
-        quote_currency string
-        asset string
-        order_side string
-        order_type string
-        creation_time float64
-        update_time float64
-        status string
-        price float64
-        amount float64
-        open_volume float64
-	cost float64
+	exchange       string
+	id             string
+	base_currency  string
+	quote_currency string
+	asset          string
+	order_side     string
+	order_type     string
+	creation_time  float64
+	update_time    float64
+	status         string
+	price          float64
+	amount         float64
+	open_volume    float64
+	cost           float64
 }
 
 func main() {
 	fmt.Printf("%v\n", time.Now().String())
 
-// Set location of config 
+	// Set location of config
 	dirname, err := os.UserHomeDir()
-    	if err != nil {
-        	fmt.Println( err )
-    	}
+	if err != nil {
+		fmt.Println(err)
+	}
 
-//	viper.SetConfigName("yourCryptoBot") // name of config file (without extension)
-	viper.AddConfigPath(dirname+"/.yourCryptoBot/")   // path to look for the config file in
+	//	viper.SetConfigName("yourCryptoBot") // name of config file (without extension)
+	viper.AddConfigPath(dirname + "/.yourCryptoBot/") // path to look for the config file in
 
-// Get commandline args
+	// Get commandline args
 	if len(os.Args) > 2 {
-			exc := os.Args[1]
-			viper.SetConfigName(exc) // name of config file (name of exchange)
+		exc := os.Args[1]
+		viper.SetConfigName(exc) // name of config file (name of exchange)
 
-// Read config
-			read_config()
+		// Read config
+		read_config()
 
-			if (exc != exchange_name) {
-				panic("Wrong exchange")
-			}
+		if exc != exchange_name {
+			panic("Wrong exchange")
+		}
 
-        	a1 := os.Args[2]
-        	if a1 == "cron" {
-                        time.Sleep(time.Duration(sleepbeforerun) * time.Second)
+		a1 := os.Args[2]
+		if a1 == "cron" {
+			time.Sleep(time.Duration(sleepbeforerun) * time.Second)
 			getCandles()
 			deleteCandles()
 			deleteStats()
@@ -150,122 +151,122 @@ func main() {
 			readOrders()
 			processOrders()
 			deleteOrders()
-                        writeCharts()
+			writeCharts()
 			buyOrders()
 			sellOrders()
-                        deactivatePositions()
+			deactivatePositions()
 			activatePositions()
 			decreasePositionRates()
 			os.Exit(0)
-        	}
-                if a1 == "sell" {
-                        sellOrders()
-                        os.Exit(0)
-                }
-                if a1 == "jhtest" {
-                        jhtest()
-                        os.Exit(0)
-                }
-                if a1 == "report" {
+		}
+		if a1 == "sell" {
+			sellOrders()
+			os.Exit(0)
+		}
+		if a1 == "jhtest" {
+			jhtest()
+			os.Exit(0)
+		}
+		if a1 == "report" {
 			deleteOldSum()
-                        calculateSum()
+			calculateSum()
 			writeReport()
 			writeSumAll()
 			writeDiff()
-                        os.Exit(0)
-                }
-                if a1 == "gettransactionsall" {
-                        getTransactionsAll()
-                        writeReport()
-                        os.Exit(0)
-                }
-                if a1 == "butsell" {
-                        time.Sleep(15 * time.Second)
-                        getCandles()
-                        deleteCandles()
-                        deleteStats()
-                        insertStats()
-                        updateStats()
+			os.Exit(0)
+		}
+		if a1 == "gettransactionsall" {
+			getTransactionsAll()
+			writeReport()
+			os.Exit(0)
+		}
+		if a1 == "butsell" {
+			time.Sleep(15 * time.Second)
+			getCandles()
+			deleteCandles()
+			deleteStats()
+			insertStats()
+			updateStats()
 			processMinMax()
-                        calculateLimit()
-                        calculateTrends()
-                        writeCharts()
-                        os.Exit(0)
-                }
-                if a1 == "candles" {
-                        getCandles()
-                        deleteCandles()
-                        os.Exit(0)
-                }
-                if a1 == "updatestats" {
-                        deleteStats()
-                        insertStats()
-                        updateStats()
-                        calculateLimit()
-                        calculateTrends()
-                        os.Exit(0)
-                }
-                if a1 == "limits" {
-                        calculateLimit()
-                        os.Exit(0)
-                }
-                if a1 == "doorder" {
-                        buyOrders()
+			calculateLimit()
+			calculateTrends()
+			writeCharts()
+			os.Exit(0)
+		}
+		if a1 == "candles" {
+			getCandles()
+			deleteCandles()
+			os.Exit(0)
+		}
+		if a1 == "updatestats" {
+			deleteStats()
+			insertStats()
+			updateStats()
+			calculateLimit()
+			calculateTrends()
+			os.Exit(0)
+		}
+		if a1 == "limits" {
+			calculateLimit()
+			os.Exit(0)
+		}
+		if a1 == "doorder" {
+			buyOrders()
 			sellOrders()
-                        os.Exit(0)
-                }
-                if a1 == "forceorder" {
-                        forceOrder(os.Args[3],os.Args[4],os.Args[5])
-                        os.Exit(0)
-                }
-                if a1 == "ticker" {
-                        runTicker(os.Args[3],os.Args[4],os.Args[5],os.Args[6],os.Args[7])
-                        os.Exit(0)
-                }
-                if a1 == "telegram" {
-                        sendTelegram()
-                        os.Exit(0)
-                }
-                if a1 == "totp" {
-                        genTotp()
-                        os.Exit(0)
-                }
-                if a1 == "testtotp" {
-                        testTotp(os.Args[3])
-                        os.Exit(0)
-                }
-                if a1 == "allowtrade" {
-                        allowTrade(os.Args[3])
-                        os.Exit(0)
-                }
-                if a1 == "account" {
+			os.Exit(0)
+		}
+		if a1 == "forceorder" {
+			forceOrder(os.Args[3], os.Args[4], os.Args[5])
+			os.Exit(0)
+		}
+		if a1 == "ticker" {
+			runTicker(os.Args[3], os.Args[4], os.Args[5], os.Args[6], os.Args[7])
+			os.Exit(0)
+		}
+		if a1 == "telegram" {
+			sendTelegram()
+			os.Exit(0)
+		}
+		if a1 == "totp" {
+			genTotp()
+			os.Exit(0)
+		}
+		if a1 == "testtotp" {
+			testTotp(os.Args[3])
+			os.Exit(0)
+		}
+		if a1 == "allowtrade" {
+			allowTrade(os.Args[3])
+			os.Exit(0)
+		}
+		if a1 == "account" {
 			deleteAccounts()
-                        readAccount()
-                        os.Exit(0)
-                }
-                if a1 == "orders" {
-                        readOrders()
+			readAccount()
+			os.Exit(0)
+		}
+		if a1 == "orders" {
+			readOrders()
 			processOrders()
 			deleteOrders()
-                        os.Exit(0)
-                }
-                if a1 == "trend" {
-                        calculateTrends()
-                        os.Exit(0)
-                }
-                if a1 == "chart" {
-                        writeCharts()
-                        os.Exit(0)
-                }
-                if a1 == "sum" {
-                        calculateSum()
-                        os.Exit(0)
-                }
-                if a1 == "positions" {
-                        deactivatePositions()
-                        activatePositions()
-                        os.Exit(0)
-                }
+			os.Exit(0)
+		}
+		if a1 == "trend" {
+			calculateTrends()
+			os.Exit(0)
+		}
+		if a1 == "chart" {
+			writeCharts()
+			os.Exit(0)
+		}
+		if a1 == "sum" {
+			calculateSum()
+			os.Exit(0)
+		}
+		if a1 == "positions" {
+			deactivatePositions()
+			activatePositions()
+			os.Exit(0)
+		}
 		fmt.Println("parameter invalid")
 		os.Exit(-1)
 	}
@@ -291,7 +292,7 @@ func getCandles() {
 
 	var cand map[string]interface{}
 	var pair map[string]interface{}
-        var cndls []interface{}
+	var cndls []interface{}
 
 	ti1 := time.Now()
 	ti2 := time.Now()
@@ -302,55 +303,55 @@ func getCandles() {
 	limit2 := ti2.String()[0:16]
 
 	for i, v := range pairs {
-		fmt.Printf("Index: %d, Value: %v\n", i, v )
-		out:=getPair(v,limit1+":00",limit2+":00")
+		fmt.Printf("Index: %d, Value: %v\n", i, v)
+		out := getPair(v, limit1+":00", limit2+":00")
 		if out == nil {
 			fmt.Println("Result empty")
 			continue
 		}
 		err := json.Unmarshal(out, &cand)
-	        if err != nil { // Handle JSON errors 
-        	        fmt.Printf("JSON error: %v\n", err)
-			fmt.Printf("JSON input: %v\n",string(out))
+		if err != nil { // Handle JSON errors
+			fmt.Printf("JSON error: %v\n", err)
+			fmt.Printf("JSON input: %v\n", string(out))
 			continue
-        	}
+		}
 		if cand["start"] != nil {
 			start = cand["start"].(string)
 		}
 		if cand["end"] != nil {
-                	end = cand["end"].(string)
+			end = cand["end"].(string)
 		}
 		if cand["exchange"] == nil {
 			continue
 		}
-                exchange = cand["exchange"].(string)
-                interval = cand["interval"].(string)
+		exchange = cand["exchange"].(string)
+		interval = cand["interval"].(string)
 		pair = cand["pair"].(map[string]interface{})
 		base = pair["base"].(string)
 		quote = pair["quote"].(string)
-                cndls = cand["candle"].([]interface{})
-		fmt.Printf("S: %s, E: %s, Ex: %s, I: %s, C:%s-%s\n",start,end,exchange,interval,base,quote)
+		cndls = cand["candle"].([]interface{})
+		fmt.Printf("S: %s, E: %s, Ex: %s, I: %s, C:%s-%s\n", start, end, exchange, interval, base, quote)
 		for _, cndl := range cndls {
 			cn := cndl.(map[string]interface{})
 			if cn != nil {
 				open = cn["open"].(float64)
-        	                close = cn["close"].(float64)
+				close = cn["close"].(float64)
 				if cn["volume"] != nil {
-                	        	volume = cn["volume"].(float64)
+					volume = cn["volume"].(float64)
 				} else {
 					volume = 0
 				}
-                        	low = cn["low"].(float64)
-	           	        high = cn["high"].(float64)
+				low = cn["low"].(float64)
+				high = cn["high"].(float64)
 				stime = cn["time"].(string)
 				t, err := time.Parse(layout, stime)
-			        if err != nil {
-                			fmt.Printf("Time conversion error: %v", err)
-       		 		}
-				fmt.Printf("O: %f, C: %f, H: %f, L: %f, V: %f, T: %s\n",open,close,high,low,volume,t)
-				insertCandles(exchange,base+"-"+quote,interval,t,open,high,low,close,volume,"SPOT")
+				if err != nil {
+					fmt.Printf("Time conversion error: %v", err)
+				}
+				fmt.Printf("O: %f, C: %f, H: %f, L: %f, V: %f, T: %s\n", open, close, high, low, volume, t)
+				insertCandles(exchange, base+"-"+quote, interval, t, open, high, low, close, volume, "SPOT")
 			}
-    		}
+		}
 
 	}
 }
@@ -364,256 +365,256 @@ func readAccount() {
 	for _, value := range lines {
 		value = strings.TrimSpace(value)
 		words := strings.Split(value, " ")
-		if strings.Contains(words[0], "currency"){
+		if strings.Contains(words[0], "currency") {
 			cur = strings.Trim(words[1], "\",")
 		}
-                if strings.Contains(words[0], "total"){
-                        tot := strings.Trim(words[1], "\",")
+		if strings.Contains(words[0], "total") {
+			tot := strings.Trim(words[1], "\",")
 			if total, err := strconv.ParseFloat(tot, 64); err == nil {
-    				fmt.Printf("Curr: %s, Total: %f\n",cur,total)
+				fmt.Printf("Curr: %s, Total: %f\n", cur, total)
 				storeAccount(exchange_name, cur, total)
 			}
-                }
+		}
 	}
 }
 
 func insertCandles(exchange string, pair string, interval string, timest time.Time, open float64, high float64, low float64,
-                   close float64, volume float64, asset string) {
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	close float64, volume float64, asset string) {
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         UPDATE yourcandle
         set open = $1, high = $2, low = $3, close = $4, volume = $5
         where exchange = $6 and pair = $7 and asset = $8 and interval = $9 and timestamp = $10`
-        info, err := db.Exec(sqlStatement, open, high, low, close, volume, exchange, pair, asset, interval, timest)
-        count, err := info.RowsAffected()
-        if err != nil {
-                panic(err)
-        }
-        if count == 0 {
+	info, err := db.Exec(sqlStatement, open, high, low, close, volume, exchange, pair, asset, interval, timest)
+	count, err := info.RowsAffected()
+	if err != nil {
+		panic(err)
+	}
+	if count == 0 {
 		sqlStatement := `
 		INSERT INTO yourcandle (
 		exchange, pair, interval, timestamp, open, high, low, close, volume, asset)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 		_, err = db.Exec(sqlStatement, exchange, pair, interval, timest, open, high, low, close, volume, asset)
 		if err != nil {
-  			fmt.Printf("SQL error: %v\n",err)
+			fmt.Printf("SQL error: %v\n", err)
 		}
 	}
 }
 
 func insertPositions(exchange string, pair string, trtype string, timest time.Time, rate float64, amount float64) {
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         INSERT INTO yourposition (exchange, pair, trtype, timestamp, rate, amount)
         VALUES ($1, $2, $3, $4, $5, $6)`
-        _, err = db.Exec(sqlStatement, exchange, pair, trtype, timest, rate, amount)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement, exchange, pair, trtype, timest, rate, amount)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 }
 
 func deletePositions(exchange string, pair string) {
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         DELETE FROM yourposition
         WHERE exchange = $1 and pair = $2 and active = true;`
-        _, err = db.Exec(sqlStatement, exchange, pair)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement, exchange, pair)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 }
 
 func storeAccount(exchange string, currency string, amount float64) {
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         UPDATE youraccount
 	set amount = $1
         where exchange = $2 and currency = $3`
-        info, err := db.Exec(sqlStatement, amount, exchange, currency)
+	info, err := db.Exec(sqlStatement, amount, exchange, currency)
 	count, err := info.RowsAffected()
-    	if err != nil {
-        	panic(err)
-    	}
-        if count == 0 { 
-	        sqlStatement := `
+	if err != nil {
+		panic(err)
+	}
+	if count == 0 {
+		sqlStatement := `
         	INSERT INTO youraccount (exchange, currency, amount)
         	VALUES ($1, $2, $3)`
-        	_, err = db.Exec(sqlStatement, exchange, currency, amount)
-        	if err != nil {
-                	fmt.Printf("SQL error: %v\n",err)
-        	}
-        }
+		_, err = db.Exec(sqlStatement, exchange, currency, amount)
+		if err != nil {
+			fmt.Printf("SQL error: %v\n", err)
+		}
+	}
 }
 
-func storeOrder(exchange string,id string,pair string,asset string,side string,otype string,
-		timest float64,status string,price float64,amount float64) {
+func storeOrder(exchange string, id string, pair string, asset string, side string, otype string,
+	timest float64, status string, price float64, amount float64) {
 
 	var tst time.Time = time.Unix(int64(timest), 0)
 
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         UPDATE yourorder
         set pair = $3, asset = $4, price = $5, amount = $6, side = $7, timestamp = $8, order_type = $9, status = $10
         where exchange = $1 and id = $2`
-        info, err := db.Exec(sqlStatement, exchange, id, pair, asset, price ,amount, side, tst, otype, status)
-        if err != nil {
-                panic(err)
-        }
-        count, err := info.RowsAffected()
-        if err != nil {
-                panic(err)
-        }
-        if count == 0 {
-                sqlStatement := `
+	info, err := db.Exec(sqlStatement, exchange, id, pair, asset, price, amount, side, tst, otype, status)
+	if err != nil {
+		panic(err)
+	}
+	count, err := info.RowsAffected()
+	if err != nil {
+		panic(err)
+	}
+	if count == 0 {
+		sqlStatement := `
                 INSERT INTO yourorder (exchange, id, pair, asset, price ,amount, side, timestamp, order_type, status)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8 ,$9, $10)`
-                _, err = db.Exec(sqlStatement, exchange, id, pair, asset, price, amount, side, tst, otype, status)
-                if err != nil {
-                        fmt.Printf("SQL error: %v\n",err)
-                }
-        }
+		_, err = db.Exec(sqlStatement, exchange, id, pair, asset, price, amount, side, tst, otype, status)
+		if err != nil {
+			fmt.Printf("SQL error: %v\n", err)
+		}
+	}
 }
 
 func insertStats() {
 	var advicePeriod int64 = 7 * 24
-        var intv string = "'168 hours'"
+	var intv string = "'168 hours'"
 
-	parm,err := getParms("AdvicePeriod")
+	parm, err := getParms("AdvicePeriod")
 	if err == nil {
 		advicePeriod = parm.intp
-		intv = fmt.Sprintf("'%d hours'",advicePeriod)
-	} 
+		intv = fmt.Sprintf("'%d hours'", advicePeriod)
+	}
 
-	fmt.Printf("Insert statistics %s\n",intv)
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Printf("Insert statistics %s\n", intv)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
 	insert into yourlimits (exchange,pair, min,avg,max,count,potwin)
 	(select exchange,pair, min(close) as min, avg(close) as avg, max(close) as max, count(close) as count,
 	(max(close) - min(close)) * $1 / min(close) as potwin
 	from yourcandle 
-	where "timestamp" > current_timestamp - interval ` + intv +  `
+	where "timestamp" > current_timestamp - interval ` + intv + `
 	AND LOWER(exchange) = $2
 	group by exchange,pair
 	order by pair);`
-        _, err = db.Exec(sqlStatement,limit_depth,exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement, limit_depth, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 }
 
 func calculateMinMax(pair string) {
-        var advicePeriod int64 = 7 * 24
-        var intv string = "'168 hours'"
+	var advicePeriod int64 = 7 * 24
+	var intv string = "'168 hours'"
 	var min float64
 	var max float64
 	var last float64
 
-        parm,err := getParms("AdvicePeriod")
-        if err == nil {
-                advicePeriod = parm.intp
-                intv = fmt.Sprintf("'%d hours'",advicePeriod)
-        }
+	parm, err := getParms("AdvicePeriod")
+	if err == nil {
+		advicePeriod = parm.intp
+		intv = fmt.Sprintf("'%d hours'", advicePeriod)
+	}
 
-        fmt.Printf("Calculate MinMax for pair %s\n",pair)
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Printf("Calculate MinMax for pair %s\n", pair)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         select close
         from yourcandle
-        where "timestamp" > current_timestamp - interval ` + intv +  `
+        where "timestamp" > current_timestamp - interval ` + intv + `
         AND LOWER(exchange) = $1
 	AND pair = $2
         order by close;`
-        rows, err := db.Query(sqlStatement,exchange_name,pair)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-        defer rows.Close()
+	rows, err := db.Query(sqlStatement, exchange_name, pair)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
+	defer rows.Close()
 
-        var i int = 0;
-        for rows.Next(){
+	var i int = 0
+	for rows.Next() {
 		var cls float64
-                if err := rows.Scan(&cls); err != nil {
-                        fmt.Println(err)
-                } else {
+		if err := rows.Scan(&cls); err != nil {
+			fmt.Println(err)
+		} else {
 			if i == 1 {
 				min = cls
 			}
-                        if i > 0 {
-                                max = last
-                        }
+			if i > 0 {
+				max = last
+			}
 			last = cls
 		}
 		i++
-        }
-        if err := rows.Err(); err != nil {
-                fmt.Println(err)
-        }
-	fmt.Printf("Min: %f, Max: %f\n",min,max)
+	}
+	if err := rows.Err(); err != nil {
+		fmt.Println(err)
+	}
+	fmt.Printf("Min: %f, Max: %f\n", min, max)
 
-        sqlStatement = `
+	sqlStatement = `
         UPDATE yourlimits 
 	SET min = $1, max = $2
         where pair = $3
         AND LOWER(exchange) = $4;`
-        _, err = db.Exec(sqlStatement,min,max,pair,exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement, min, max, pair, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 }
 
 func updateStats() {
-        fmt.Println("Update statistics")
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Println("Update statistics")
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
 	for _, v := range pairs {
-        	sqlStatement := `
+		sqlStatement := `
 		WITH subquery AS (
 		select close, pair, ((close - open) * 100 / open) as lastcandle from yourcandle y 
 		where timestamp =
@@ -626,25 +627,25 @@ func updateStats() {
 		FROM subquery
 		WHERE l.pair = subquery.pair
 		AND LOWER(l.exchange) = $1;`
-        	_, err = db.Exec(sqlStatement,exchange_name,v)
-        	if err != nil {
-                	fmt.Printf("SQL error: %v\n",err)
-        	}
+		_, err = db.Exec(sqlStatement, exchange_name, v)
+		if err != nil {
+			fmt.Printf("SQL error: %v\n", err)
+		}
 	}
 }
 
 func calculateLimit() {
-	var depth int = (100 - limit_depth)/2
+	var depth int = (100 - limit_depth) / 2
 
-        fmt.Println("Calculate limit")
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Println("Calculate limit")
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         with subquery as (
         select
         pair,
@@ -658,250 +659,250 @@ func calculateLimit() {
         FROM subquery
         WHERE l.pair = subquery.pair
 	AND LOWER(l.exchange) = $2;`
-        _, err = db.Exec(sqlStatement,depth,exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement, depth, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 }
 
 func deleteStats() {
 	fmt.Println("Delete statistics")
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         delete from yourlimits
 	WHERE LOWER(exchange) = $1;`
-        _, err = db.Exec(sqlStatement,exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 }
 
 func deleteAccounts() {
-        fmt.Println("Delete accounts")
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Println("Delete accounts")
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         delete from youraccount
 	WHERE exchange = $1;`
-        _, err = db.Exec(sqlStatement,exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 }
 
 func deleteOrders() {
-        fmt.Println("Delete orders")
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Println("Delete orders")
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         delete from yourorder
 	where status in ('CANCELLED','CANCELED','REJECTED')
 	AND LOWER(exchange) = $1;`
-        _, err = db.Exec(sqlStatement,exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 }
 
 func deleteOldOrders() {
-        fmt.Println("Delete old orders")
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Println("Delete old orders")
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         delete from yourorder
         where "timestamp" < current_timestamp - interval '30 days'
 	AND LOWER(exchange) = $1;`
-        _, err = db.Exec(sqlStatement,exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 }
 
 func deleteOldSum() {
-        fmt.Println("Delete old sums")
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Println("Delete old sums")
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         delete from yoursum
         where valdate < current_date - interval '35 days';`
-        _, err = db.Exec(sqlStatement)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 }
 
 func deleteCandles() {
-        fmt.Println("Delete candles")
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Println("Delete candles")
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         delete from yourcandle
         where "timestamp" < current_timestamp - interval '35 days'`
-        _, err = db.Exec(sqlStatement)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 }
 
 func getPair(p string, s string, e string) []byte {
-        out, err := exec.Command(gctcmd, "gethistoriccandlesextended",
-        "-e",exchange_name,"-a","SPOT","-p",p,"-i","900",
-        "--start",s,"--end",e).Output()
-        if err != nil {
-                fmt.Printf("Command finished with error: %v", err)
-        }
+	out, err := exec.Command(gctcmd, "gethistoriccandlesextended",
+		"-e", exchange_name, "-a", "SPOT", "-p", p, "-i", "900",
+		"--start", s, "--end", e).Output()
+	if err != nil {
+		fmt.Printf("Command finished with error: %v", err)
+	}
 	return out
 }
 
 func getAccount() []byte {
-        out, err := exec.Command(gctcmd, "getaccountinfo",
-        "--exchange",exchange_name,"--asset","SPOT").Output()
-        if err != nil {
-                fmt.Printf("Command finished with error: %v", err)
-        }
-        return out
+	out, err := exec.Command(gctcmd, "getaccountinfo",
+		"--exchange", exchange_name, "--asset", "SPOT").Output()
+	if err != nil {
+		fmt.Printf("Command finished with error: %v", err)
+	}
+	return out
 }
 
-func getOrder(pair string,id string) []byte {
-        cmd := exec.Command(gctcmd, "getorder",
-        "--exchange",exchange_name,"--asset","SPOT","--pair",pair,"--order_id",id)
+func getOrder(pair string, id string) []byte {
+	cmd := exec.Command(gctcmd, "getorder",
+		"--exchange", exchange_name, "--asset", "SPOT", "--pair", pair, "--order_id", id)
 	out, err := cmd.Output()
-        if err != nil {
-                fmt.Printf("Command finished with error: %v", err)
+	if err != nil {
+		fmt.Printf("Command finished with error: %v", err)
 		fmt.Println(cmd.String())
-        }
-        return out
+	}
+	return out
 }
 
 func getOrders(pair string) []byte {
-        out, err := exec.Command(gctcmd, "getorders",
-        "--exchange",exchange_name,"--asset","SPOT","--pair",pair).Output()
-        if err != nil {
-                fmt.Printf("Command finished with error: %v", err)
-        }
-        return out
+	out, err := exec.Command(gctcmd, "getorders",
+		"--exchange", exchange_name, "--asset", "SPOT", "--pair", pair).Output()
+	if err != nil {
+		fmt.Printf("Command finished with error: %v", err)
+	}
+	return out
 }
 
-func submitOrder(pair string,side string,otype string,amount float64,price float64,clientid string) []byte {
-        var resp map[string]interface{}
+func submitOrder(pair string, side string, otype string, amount float64, price float64, clientid string) []byte {
+	var resp map[string]interface{}
 	var stramount string
-	var strprice string 
-	var aformat string = "%."+amountcomma[strings.ToLower(pair)]+"f"
-        var pformat string = "%."+pricecomma[strings.ToLower(pair)]+"f"
+	var strprice string
+	var aformat string = "%." + amountcomma[strings.ToLower(pair)] + "f"
+	var pformat string = "%." + pricecomma[strings.ToLower(pair)] + "f"
 	apot, _ := strconv.ParseInt(amountcomma[strings.ToLower(pair)], 10, 32)
-	fac := math.Pow(float64(10),float64(apot))
-	amount = float64(math.Floor(amount*fac)/fac)
+	fac := math.Pow(float64(10), float64(apot))
+	amount = float64(math.Floor(amount*fac) / fac)
 
-	stramount = fmt.Sprintf(aformat,amount)
-	strprice = fmt.Sprintf(pformat,price)
+	stramount = fmt.Sprintf(aformat, amount)
+	strprice = fmt.Sprintf(pformat, price)
 
-	fmt.Printf("A: %s, P: %s\n",stramount,strprice)
+	fmt.Printf("A: %s, P: %s\n", stramount, strprice)
 
-        cmd := exec.Command(gctcmd, "submitorder",
-        "--exchange",exchange_name,"--asset","SPOT","--pair",pair,"--side",side,"--type",otype,
-	"--amount",stramount,"--price",strprice,"--client_id",clientid)
+	cmd := exec.Command(gctcmd, "submitorder",
+		"--exchange", exchange_name, "--asset", "SPOT", "--pair", pair, "--side", side, "--type", otype,
+		"--amount", stramount, "--price", strprice, "--client_id", clientid)
 	out, err := cmd.Output()
-        if err != nil {
-                fmt.Printf("Command finished with error: %v", err)
+	if err != nil {
+		fmt.Printf("Command finished with error: %v", err)
 		fmt.Println(cmd.String())
-        } else {
-                err := json.Unmarshal(out, &resp)
-                if err != nil { // Handle JSON errors
-                	fmt.Printf("JSON error: %v\n", err)
-                	fmt.Printf("JSON input: %v\n",string(out))
-                } else {
-//                	status = strings.ToLower(resp["exchange"].(string))
+	} else {
+		err := json.Unmarshal(out, &resp)
+		if err != nil { // Handle JSON errors
+			fmt.Printf("JSON error: %v\n", err)
+			fmt.Printf("JSON input: %v\n", string(out))
+		} else {
+			//                	status = strings.ToLower(resp["exchange"].(string))
 			if resp["order_id"] != nil {
-                		id := resp["order_id"].(string)
-  	                	storeOrder(exchange_name,id,pair,"SPOT",side,otype,float64(time.Now().Unix()),"NEW",price,amount)
+				id := resp["order_id"].(string)
+				storeOrder(exchange_name, id, pair, "SPOT", side, otype, float64(time.Now().Unix()), "NEW", price, amount)
 			} else if resp["id"] != nil {
-                                id := resp["id"].(string)
-                                storeOrder(exchange_name,id,pair,"SPOT",side,otype,float64(time.Now().Unix()),"NEW",price,amount)
-                        } else {
-				fmt.Printf("Submit error: P: %s, S: %s, T: %s, A: %s, Pr: %s\n",pair,side,otype,stramount,strprice)
+				id := resp["id"].(string)
+				storeOrder(exchange_name, id, pair, "SPOT", side, otype, float64(time.Now().Unix()), "NEW", price, amount)
+			} else {
+				fmt.Printf("Submit error: P: %s, S: %s, T: %s, A: %s, Pr: %s\n", pair, side, otype, stramount, strprice)
 			}
 		}
 	}
-        return out
+	return out
 }
 
-func cancelOrder(pair string,oid string) []byte {
-        out, err := exec.Command(gctcmd, "cancelorder",
-        "--exchange",exchange_name,"--asset","SPOT","--pair",pair,"--order_id",oid).Output()
-        if err != nil {
-                fmt.Printf("Command finished with error: %v", err)
-        }
-        return out
+func cancelOrder(pair string, oid string) []byte {
+	out, err := exec.Command(gctcmd, "cancelorder",
+		"--exchange", exchange_name, "--asset", "SPOT", "--pair", pair, "--order_id", oid).Output()
+	if err != nil {
+		fmt.Printf("Command finished with error: %v", err)
+	}
+	return out
 }
 
-func insertParms(key string, intp int64, floatp float64, stringp string, datep time.Time, timep time.Time, timestampp time.Time ) {
-        fmt.Printf("Insert parm %v\n",key)
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+func insertParms(key string, intp int64, floatp float64, stringp string, datep time.Time, timep time.Time, timestampp time.Time) {
+	fmt.Printf("Insert parm %v\n", key)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         insert into yourparameter (key, "int", "float", "string", "date", "time", "timestamp")
 	values ($1,$2,$3,$4,$5,$6,$7);`
-        _, err = db.Exec(sqlStatement,key,intp,floatp,stringp,datep,timep,timestampp)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement, key, intp, floatp, stringp, datep, timep, timestampp)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 }
 
 func getParms(key string) (parms Parm, err error) {
-        fmt.Printf("Get parm %v\n",key)
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Printf("Get parm %v\n", key)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
- 
+	defer db.Close()
+
 	parms.key = ""
 
-        sqlStatement := `
+	sqlStatement := `
         select "key", "int", "float", "string", "date", "time", "timestamp"  from yourparameter 
 	where key = $1;`
 
-	err = db.QueryRow(sqlStatement, key).Scan(&parms.key,&parms.intp,&parms.floatp,&parms.stringp,&parms.datep,&parms.timep,&parms.timestampp)
+	err = db.QueryRow(sqlStatement, key).Scan(&parms.key, &parms.intp, &parms.floatp, &parms.stringp, &parms.datep, &parms.timep, &parms.timestampp)
 	if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+		fmt.Printf("SQL error: %v\n", err)
+	}
 	return
 }
 
@@ -911,27 +912,27 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 	var min float64
 	var potwin float64
 	var trend1 float64
-        var trend2 float64
-        var trend3 float64
+	var trend2 float64
+	var trend3 float64
 	var lastcandle float64
 
 	price = 0
 	amount = 0
 
-        if arrayContains(nobuypairs,pair) {
-                fmt.Println("Nobuyflag set for this pair")
-                return
-        }
+	if arrayContains(nobuypairs, pair) {
+		fmt.Println("Nobuyflag set for this pair")
+		return
+	}
 
-        fmt.Printf("Get buy price %v\n",pair)
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Printf("Get buy price %v\n", pair)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         select l.limitbuy, l.current, l.min, l.potwin, l.trend1, l.trend2, l.trend3, l.lastcandle from yourlimits l 
         where l.pair = $1
 	AND LOWER(l.exchange) = $2
@@ -950,53 +951,52 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 	)
         );`
 
-        err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&min,&potwin,&trend1,&trend2,&trend3,&lastcandle)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit, &current, &min, &potwin, &trend1, &trend2, &trend3, &lastcandle)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 
-	fmt.Printf("C: %f, L: %f, M: %f, P: %f, T1: %f, T2: %f, T3: %f, LC: %f\n",current,limit,min,potwin,trend1,trend2,trend3,lastcandle)
+	fmt.Printf("C: %f, L: %f, M: %f, P: %f, T1: %f, T2: %f, T3: %f, LC: %f\n", current, limit, min, potwin, trend1, trend2, trend3, lastcandle)
 
-	if (current < limit) && (potwin > float64(minwin) + 1) && isEnoughMoney() {
+	if (current < limit) && (potwin > float64(minwin)+1) && isEnoughMoney() {
 		var dobuy bool = false
 		if (current >= min) && (trend2 < -1) && (trend1 > 0.1) {
 			dobuy = true
 			fmt.Println("Rule 1")
 		} else if (current >= min) && (trend3 < -0.3) && (trend2 < -0.1) && (trend2 > -0.5) && (trend1 > 0.1) {
-                        dobuy = true
-                        fmt.Println("Rule 2")
-                } else if (current >= min) && (trend2 < 0.7) && (trend2 > -0.7) && (trend1 > 0.1) {
-                        dobuy = true
-                        fmt.Println("Rule 3")
-                } else if (usezerostrategy) && (math.Abs(trend1) < 0.03) {
-                        dobuy = true
-                        fmt.Println("Rule 4")
-                } else {
-                        fmt.Println("wait due to trend")
+			dobuy = true
+			fmt.Println("Rule 2")
+		} else if (current >= min) && (trend2 < 0.7) && (trend2 > -0.7) && (trend1 > 0.1) {
+			dobuy = true
+			fmt.Println("Rule 3")
+		} else if (usezerostrategy) && (math.Abs(trend1) < 0.03) {
+			dobuy = true
+			fmt.Println("Rule 4")
+		} else {
+			fmt.Println("wait due to trend")
 			if useticker {
-        			_ = exec.Command(os.Args[0], exchange_name, "ticker", pair,
-        				"BUY",fmt.Sprintf("%f",limit),fmt.Sprintf("%f",current),"0").Start()
+				_ = exec.Command(os.Args[0], exchange_name, "ticker", pair,
+					"BUY", fmt.Sprintf("%f", limit), fmt.Sprintf("%f", current), "0").Start()
 				fmt.Printf("BUY ticker started -- P: %s, L: %f, C: %f\n", pair, limit, current)
 			}
-		} 
+		}
 		if dobuy {
 			price = limit
-			amount = float64(invest_amount)/price
-                	fmt.Printf("Price: %f\n",limit)
-        	} 
+			amount = float64(invest_amount) / price
+			fmt.Printf("Price: %f\n", limit)
+		}
 	}
 
-        if (current > limit) && (limit > 0) && (bullstrategy == true) && (trend1 > bulltrend) && (trend2 > bulltrend) && (lastcandle > 0) && isEnoughMoney() {
+	if (current > limit) && (limit > 0) && (bullstrategy == true) && (trend1 > bulltrend) && (trend2 > bulltrend) && (lastcandle > 0) && isEnoughMoney() {
 		fmt.Println("use bull strategy")
 		price = current * 1.005
-		amount = float64(invest_amount)/price
+		amount = float64(invest_amount) / price
 	}
 
-	fmt.Printf("A: %f, P: %f\n",amount,price)
+	fmt.Printf("A: %f, P: %f\n", amount, price)
 
-        return
+	return
 }
-
 
 func getSellPrice(pair string) (price float64, amount float64, err error) {
 	var rate float64
@@ -1005,22 +1005,22 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
 	var amnt float64
 	var max float64
 	var trend1 float64
-        var trend2 float64
-        var trend3 float64
+	var trend2 float64
+	var trend3 float64
 	var winrate float64
 
 	price = 0
 	amount = 0
 
-        fmt.Printf("Get sell price %v\n",pair)
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Printf("Get sell price %v\n", pair)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         select l.limitsell, l.current, l.max, l.trend1, l.trend2, l.trend3, p.rate, least(p.amount,a.amount)*0.995 as amount 
 	from yourlimits l, yourposition p, youraccount a 
         where l.pair = $1
@@ -1032,10 +1032,10 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
 	AND p.active = true
 	AND notrade = false;`
 
-        err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit,&current,&max,&trend1,&trend2,&trend3,&rate,&amnt)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	err = db.QueryRow(sqlStatement, pair, exchange_name).Scan(&limit, &current, &max, &trend1, &trend2, &trend3, &rate, &amnt)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 
 	winrate = rate * ((100 + float64(minwin)) / 100)
 
@@ -1043,75 +1043,75 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
 		winrate = rate * ((100 + float64(bullwin)) / 100)
 	}
 
-	fmt.Printf("C: %f, L: %f, M: %f, R: %f, T1: %f, T2: %f, T3: %f\n",current,limit,max,winrate,trend1,trend2,trend3)
+	fmt.Printf("C: %f, L: %f, M: %f, R: %f, T1: %f, T2: %f, T3: %f\n", current, limit, max, winrate, trend1, trend2, trend3)
 
 	if winrate > limit {
 		limit = winrate
 	}
 
 	if current > limit {
-                var dosell bool = false
-                if trend1 < 0.1 {
-                        dosell = true
-                        fmt.Println("Rule 1")
-                } else if (usezerostrategy) && (math.Abs(trend1) < 0.03) {
-                        dosell = true
-                        fmt.Println("Rule 2")
-                }
-                if dosell {
-                        amount = amnt
-                        price = limit
-                        fmt.Printf("Price: %f\n",limit)
-                } else {
-                        fmt.Println("Wait due to trend")
-                        if useticker {
-                                _ = exec.Command(os.Args[0], exchange_name, "ticker", pair,
-                                        "SELL",fmt.Sprintf("%f",limit),fmt.Sprintf("%f",current),fmt.Sprintf("%f",amnt)).Start()
-                                fmt.Printf("Sell ticker started -- P: %s, L: %f, C: %f\n", pair, limit, current)
-                        }
+		var dosell bool = false
+		if trend1 < 0.1 {
+			dosell = true
+			fmt.Println("Rule 1")
+		} else if (usezerostrategy) && (math.Abs(trend1) < 0.03) {
+			dosell = true
+			fmt.Println("Rule 2")
 		}
-        }
+		if dosell {
+			amount = amnt
+			price = limit
+			fmt.Printf("Price: %f\n", limit)
+		} else {
+			fmt.Println("Wait due to trend")
+			if useticker {
+				_ = exec.Command(os.Args[0], exchange_name, "ticker", pair,
+					"SELL", fmt.Sprintf("%f", limit), fmt.Sprintf("%f", current), fmt.Sprintf("%f", amnt)).Start()
+				fmt.Printf("Sell ticker started -- P: %s, L: %f, C: %f\n", pair, limit, current)
+			}
+		}
+	}
 
-	fmt.Printf("A: %f, P: %f\n",amount,price)
+	fmt.Printf("A: %f, P: %f\n", amount, price)
 
-        return
+	return
 }
 
 func submitTelegram(msg string) {
-        f, err := os.OpenFile(pipeFile, os.O_WRONLY|syscall.O_NONBLOCK, 0644)
-        if err != nil {
-                fmt.Printf("open: %v\n", err)
-        }
-        defer f.Close()
+	f, err := os.OpenFile(pipeFile, os.O_WRONLY|syscall.O_NONBLOCK, 0644)
+	if err != nil {
+		fmt.Printf("open: %v\n", err)
+	}
+	defer f.Close()
 
-        _, err = f.WriteString(msg+"\n")
+	_, err = f.WriteString(msg + "\n")
 
-        if err != nil {
-	        fmt.Println(err)
-        }
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func deleteParms(key string) (parms Parm, err error) {
-        fmt.Printf("Delete parm %v\n",key)
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Printf("Delete parm %v\n", key)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         delete from yourparameter
         where key = $1;`
 
-        _, err = db.Exec(sqlStatement, key)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-        return
+	_, err = db.Exec(sqlStatement, key)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
+	return
 }
 
-func sendTelegram(){
+func sendTelegram() {
 	var mess string
 
 	if err := os.Remove(pipeFile); err != nil && !os.IsNotExist(err) {
@@ -1131,7 +1131,7 @@ func sendTelegram(){
 
 	bot, err := tgbotapi.NewBotAPI(tbtoken)
 	if err != nil {
-		fmt.Printf("Telegram error: %v\n",err)
+		fmt.Printf("Telegram error: %v\n", err)
 		return
 	}
 
@@ -1144,7 +1144,7 @@ func sendTelegram(){
 
 	updates, err := bot.GetUpdatesChan(u)
 
-	parms,err := getParms("ChatID")
+	parms, err := getParms("ChatID")
 	if err == nil {
 		msg := tgbotapi.NewMessage(parms.intp, "The bot is active")
 		bot.Send(msg)
@@ -1152,214 +1152,214 @@ func sendTelegram(){
 
 	for true {
 		mess = ""
-                line, err := reader.ReadBytes('\n')
-                if err == nil {
+		line, err := reader.ReadBytes('\n')
+		if err == nil {
 			m := string(line)
 			m = strings.ReplaceAll(m, "|", "\n")
-                        fmt.Printf("%v Message: %s", time.Now().String(), m)
-                	msg := tgbotapi.NewMessage(parms.intp, m)
-                	bot.Send(msg)
-                }
-       		select {
- 			case update := <-updates:
-  				fmt.Printf("%v [%s] %s\n", time.Now().String(), update.Message.From.UserName, update.Message.Text)
-                		insertParms("ChatID", update.Message.Chat.ID, 0, "", time.Now(), time.Now(), time.Now())
-				argParts := strings.Split(update.Message.Text, " ")
-                                if  argParts[0] == "Adviceperiod" {
-					var passcode string
-					period, err := strconv.Atoi(argParts[1])
-					if len(argParts) > 2 {
-                                        passcode = argParts[2]
-					} else {
-						passcode = ""
-					}
-                                        valid := totp.Validate(passcode, key_secret)
-					if err == nil && valid {
-						fmt.Println(period)
-						deleteParms("AdvicePeriod")
- 						insertParms("AdvicePeriod", int64(period), 0, "", time.Now(), time.Now(), time.Now())
-						mess = "command successful"
-					} else {
-                                        	mess = "command failed"
-					}
-                                }
-                                if  argParts[0] == "Limitdepth" {
-                                        var passcode string
-                                        period, err := strconv.Atoi(argParts[1])
-                                        if len(argParts) > 2 {
-                                        passcode = argParts[2]
-                                        } else {
-                                                passcode = ""
-                                        }
-                                        valid := totp.Validate(passcode, key_secret)
-                                        if err == nil && valid {
-                                                fmt.Println(period)
-                                                deleteParms("limit_depth")
-                                                insertParms("limit_depth", int64(period), 0, "", time.Now(), time.Now(), time.Now())
-                                                mess = "command successful"
-                                        } else {
-                                                mess = "command failed"
-                                        }
-                                }
-                                if  argParts[0] == "Bulltrend" {
-                                        var passcode string
-                                        period, err := strconv.ParseFloat(argParts[1],64)
-                                        if len(argParts) > 2 {
-                                        passcode = argParts[2]
-                                        } else {
-                                                passcode = ""
-                                        }
-                                        valid := totp.Validate(passcode, key_secret)
-                                        if err == nil && valid {
-                                                fmt.Println(period)
-                                                deleteParms("bulltrend")
-                                                insertParms("bulltrend", 0, float64(period), "", time.Now(), time.Now(), time.Now())
-                                                mess = "command successful"
-                                        } else {
-                                                mess = "command failed"
-                                        }
-                                }
-                                if  argParts[0] == "Stoptrade" {
-                                        var passcode string
-                                        if len(argParts) > 1 {
-                                        passcode = argParts[1]
-                                        } else {
-                                                passcode = ""
-                                        }
-        				valid := totp.Validate(passcode, key_secret)
-                                        if valid {
-                                                deleteParms("DoTrade")
-                                                mess = "command successful"
-                                        } else {
-                                                mess = "command failed"
-                                        }
-                                }
-                                if  argParts[0] == "Nobull" {
-                                        var passcode string
-                                        if len(argParts) > 1 {
-                                        passcode = argParts[1]
-                                        } else {
-                                                passcode = ""
-                                        }
-                                        valid := totp.Validate(passcode, key_secret)
-                                        if valid {
-				                insertParms("nobull", 1, 0, "", time.Now(), time.Now(), time.Now())
-                                                mess = "command successful"
-                                        } else {
-                                                mess = "command failed"
-                                        }
-                                }
-				if  mess != "" {
-                			msg := tgbotapi.NewMessage(update.Message.Chat.ID, mess)
-                			msg.ReplyToMessageID = update.Message.MessageID
-		                	bot.Send(msg)
-					fmt.Printf("%s Sent: %s\n", time.Now().String(),mess)
+			fmt.Printf("%v Message: %s", time.Now().String(), m)
+			msg := tgbotapi.NewMessage(parms.intp, m)
+			bot.Send(msg)
+		}
+		select {
+		case update := <-updates:
+			fmt.Printf("%v [%s] %s\n", time.Now().String(), update.Message.From.UserName, update.Message.Text)
+			insertParms("ChatID", update.Message.Chat.ID, 0, "", time.Now(), time.Now(), time.Now())
+			argParts := strings.Split(update.Message.Text, " ")
+			if argParts[0] == "Adviceperiod" {
+				var passcode string
+				period, err := strconv.Atoi(argParts[1])
+				if len(argParts) > 2 {
+					passcode = argParts[2]
+				} else {
+					passcode = ""
 				}
- 			default:
- 		}
+				valid := totp.Validate(passcode, key_secret)
+				if err == nil && valid {
+					fmt.Println(period)
+					deleteParms("AdvicePeriod")
+					insertParms("AdvicePeriod", int64(period), 0, "", time.Now(), time.Now(), time.Now())
+					mess = "command successful"
+				} else {
+					mess = "command failed"
+				}
+			}
+			if argParts[0] == "Limitdepth" {
+				var passcode string
+				period, err := strconv.Atoi(argParts[1])
+				if len(argParts) > 2 {
+					passcode = argParts[2]
+				} else {
+					passcode = ""
+				}
+				valid := totp.Validate(passcode, key_secret)
+				if err == nil && valid {
+					fmt.Println(period)
+					deleteParms("limit_depth")
+					insertParms("limit_depth", int64(period), 0, "", time.Now(), time.Now(), time.Now())
+					mess = "command successful"
+				} else {
+					mess = "command failed"
+				}
+			}
+			if argParts[0] == "Bulltrend" {
+				var passcode string
+				period, err := strconv.ParseFloat(argParts[1], 64)
+				if len(argParts) > 2 {
+					passcode = argParts[2]
+				} else {
+					passcode = ""
+				}
+				valid := totp.Validate(passcode, key_secret)
+				if err == nil && valid {
+					fmt.Println(period)
+					deleteParms("bulltrend")
+					insertParms("bulltrend", 0, float64(period), "", time.Now(), time.Now(), time.Now())
+					mess = "command successful"
+				} else {
+					mess = "command failed"
+				}
+			}
+			if argParts[0] == "Stoptrade" {
+				var passcode string
+				if len(argParts) > 1 {
+					passcode = argParts[1]
+				} else {
+					passcode = ""
+				}
+				valid := totp.Validate(passcode, key_secret)
+				if valid {
+					deleteParms("DoTrade")
+					mess = "command successful"
+				} else {
+					mess = "command failed"
+				}
+			}
+			if argParts[0] == "Nobull" {
+				var passcode string
+				if len(argParts) > 1 {
+					passcode = argParts[1]
+				} else {
+					passcode = ""
+				}
+				valid := totp.Validate(passcode, key_secret)
+				if valid {
+					insertParms("nobull", 1, 0, "", time.Now(), time.Now(), time.Now())
+					mess = "command successful"
+				} else {
+					mess = "command failed"
+				}
+			}
+			if mess != "" {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, mess)
+				msg.ReplyToMessageID = update.Message.MessageID
+				bot.Send(msg)
+				fmt.Printf("%s Sent: %s\n", time.Now().String(), mess)
+			}
+		default:
+		}
 		time.Sleep(30 * time.Second)
-	} 
+	}
 }
 
 func read_config() {
-        err := viper.ReadInConfig() // Find and read the config file
-        if err != nil { // Handle errors reading the config file
-                fmt.Printf("Config file not found: %v", err)
-        }
+	err := viper.ReadInConfig() // Find and read the config file
+	if err != nil {             // Handle errors reading the config file
+		fmt.Printf("Config file not found: %v", err)
+	}
 
-        pairs = viper.GetStringSlice("pairs")
-        tradepairs = viper.GetStringSlice("tradepairs")
-        nobuypairs = viper.GetStringSlice("nobuypairs")
+	pairs = viper.GetStringSlice("pairs")
+	tradepairs = viper.GetStringSlice("tradepairs")
+	nobuypairs = viper.GetStringSlice("nobuypairs")
 
-        do_trace = viper.GetBool("do_trace")
-        btcref = viper.GetBool("btcref")
+	do_trace = viper.GetBool("do_trace")
+	btcref = viper.GetBool("btcref")
 	sleepbeforerun = viper.GetInt("sleepbeforerun")
 
-        exchange_name = viper.GetString("exchange_name")
-        curr_quote = viper.GetString("curr_quote")
+	exchange_name = viper.GetString("exchange_name")
+	curr_quote = viper.GetString("curr_quote")
 
 	gctcmd = viper.GetString("gctcmd")
 
-        wwwpath = viper.GetString("wwwpath")
-        pipeFile = viper.GetString("pipefile")
+	wwwpath = viper.GetString("wwwpath")
+	pipeFile = viper.GetString("pipefile")
 
-        pguser = viper.GetString("pguser")
-        pgpassword = viper.GetString("pgpassword")
+	pguser = viper.GetString("pguser")
+	pgpassword = viper.GetString("pgpassword")
 	pgdb = viper.GetString("pgdb")
 
 	tbtoken = viper.GetString("tbtoken")
 
-        key_issuer = viper.GetString("key_issuer")
-        key_account = viper.GetString("key_account")
-        key_secret = viper.GetString("key_secret")
+	key_issuer = viper.GetString("key_issuer")
+	key_account = viper.GetString("key_account")
+	key_secret = viper.GetString("key_secret")
 
 	amountcomma = viper.GetStringMapString("amountcomma")
-        pricecomma = viper.GetStringMapString("pricecomma")
+	pricecomma = viper.GetStringMapString("pricecomma")
 
 	limit_depth = viper.GetInt("limit_depth")
-        invest_amount = viper.GetInt("invest_amount")
-        minwin = viper.GetInt("minwin")
+	invest_amount = viper.GetInt("invest_amount")
+	minwin = viper.GetInt("minwin")
 
 	useticker = viper.GetBool("useticker")
-        usezerostrategy = viper.GetBool("usezerostrategy")
-        bullstrategy = viper.GetBool("bullstrategy")
-        bullwin = viper.GetInt("bullwin")
-        bulltrend = viper.GetFloat64("bulltrend")
+	usezerostrategy = viper.GetBool("usezerostrategy")
+	bullstrategy = viper.GetBool("bullstrategy")
+	bullwin = viper.GetInt("bullwin")
+	bulltrend = viper.GetFloat64("bulltrend")
 
-	parm,err := getParms("nobull")
-        if err == nil {
+	parm, err := getParms("nobull")
+	if err == nil {
 		if parm.intp == 1 {
 			bullstrategy = false
 		}
-        }
+	}
 
-        parm,err = getParms("bulltrend")
-        if err == nil {
-                bulltrend = float64(parm.floatp)
-        }
+	parm, err = getParms("bulltrend")
+	if err == nil {
+		bulltrend = float64(parm.floatp)
+	}
 
-        parm,err = getParms("sell_days")
-        if err == nil {
-                sell_days = int64(parm.intp)
-        } else {
+	parm, err = getParms("sell_days")
+	if err == nil {
+		sell_days = int64(parm.intp)
+	} else {
 		sell_days = 0
 	}
 
-        parm,err = getParms("limit_depth")
-        if err == nil {
-                limit_depth = int(parm.intp)
-        }
+	parm, err = getParms("limit_depth")
+	if err == nil {
+		limit_depth = int(parm.intp)
+	}
 
 	if limit_depth > 90 || limit_depth < 10 {
 		limit_depth = 80
 	}
 
-        if invest_amount > 500 || limit_depth < 50 {
-                invest_amount = 100
-        }
+	if invest_amount > 500 || limit_depth < 50 {
+		invest_amount = 100
+	}
 
 	if do_trace {
-		fmt.Println("do_trace: ",do_trace)
-                fmt.Printf("sleepbeforerun: %d\n",sleepbeforerun)
-                fmt.Printf("exchange_name: %s\n",exchange_name)
-                fmt.Printf("limit_depth: %d\n",limit_depth)
-                fmt.Printf("invest_amount: %d\n",invest_amount)
-                fmt.Printf("minwin: %d\n",minwin)
-                fmt.Printf("bulltrend: %f\n",bulltrend)
+		fmt.Println("do_trace: ", do_trace)
+		fmt.Printf("sleepbeforerun: %d\n", sleepbeforerun)
+		fmt.Printf("exchange_name: %s\n", exchange_name)
+		fmt.Printf("limit_depth: %d\n", limit_depth)
+		fmt.Printf("invest_amount: %d\n", invest_amount)
+		fmt.Printf("minwin: %d\n", minwin)
+		fmt.Printf("bulltrend: %f\n", bulltrend)
 		fmt.Println(amountcomma)
-                fmt.Println(pricecomma)
+		fmt.Println(pricecomma)
 		for i, v := range pairs {
-			fmt.Printf("Index: %d, Value: %v\n", i, v )
+			fmt.Printf("Index: %d, Value: %v\n", i, v)
 		}
 	}
 }
 
 func readOrders() {
-        var pack map[string]interface{}
+	var pack map[string]interface{}
 	var o Order
 
-        for i, v := range tradepairs {
-                fmt.Printf("%d, Value: %v\n", i, v )
+	for i, v := range tradepairs {
+		fmt.Printf("%d, Value: %v\n", i, v)
 		out := getOrders(v)
 
 		if len(string(out)) < 10 {
@@ -1367,151 +1367,151 @@ func readOrders() {
 			continue
 		}
 
-                err := json.Unmarshal(out, &pack)
-                if err != nil { // Handle JSON errors
-                        fmt.Printf("JSON error: %v\n", err)
-                        fmt.Printf("JSON input: %v\n",string(out))
-                        continue
-                }
+		err := json.Unmarshal(out, &pack)
+		if err != nil { // Handle JSON errors
+			fmt.Printf("JSON error: %v\n", err)
+			fmt.Printf("JSON input: %v\n", string(out))
+			continue
+		}
 		orders := pack["orders"].([]interface{})
-                for _, order := range orders {
+		for _, order := range orders {
 			ord := order.(map[string]interface{})
 			o.exchange = ord["exchange"].(string)
-                        o.id = ord["id"].(string)
-                        o.base_currency = ord["base_currency"].(string)
-                        o.quote_currency = ord["quote_currency"].(string)
-			if ord["asset_type"] != nil { 
+			o.id = ord["id"].(string)
+			o.base_currency = ord["base_currency"].(string)
+			o.quote_currency = ord["quote_currency"].(string)
+			if ord["asset_type"] != nil {
 				o.asset = ord["asset_type"].(string)
 			}
-                        o.order_side = ord["order_side"].(string) 
-                        o.order_type = ord["order_type"].(string)
-                        o.creation_time = ord["creation_time"].(float64)
+			o.order_side = ord["order_side"].(string)
+			o.order_type = ord["order_type"].(string)
+			o.creation_time = ord["creation_time"].(float64)
 			if ord["update_time"] != nil {
-                        	o.update_time = ord["update_time"].(float64)
+				o.update_time = ord["update_time"].(float64)
 			}
 			if ord["status"] != nil {
-                        	o.status = ord["status"].(string)
+				o.status = ord["status"].(string)
 			}
-                        o.price = ord["price"].(float64)
-                        o.amount = ord["amount"].(float64)
-                        o.open_volume = ord["open_volume"].(float64)
-                        fmt.Println(o)
+			o.price = ord["price"].(float64)
+			o.amount = ord["amount"].(float64)
+			o.open_volume = ord["open_volume"].(float64)
+			fmt.Println(o)
 
-			storeOrder(o.exchange,o.id,o.base_currency+"-"+o.quote_currency,o.asset,o.order_side,o.order_type,o.update_time,o.status,o.price,o.amount) 
-		} 
-        }
+			storeOrder(o.exchange, o.id, o.base_currency+"-"+o.quote_currency, o.asset, o.order_side, o.order_type, o.update_time, o.status, o.price, o.amount)
+		}
+	}
 }
 
 func myUsage() {
-     fmt.Printf("Usage: %s argument\n", os.Args[0])
-     fmt.Println("Arguments:")
-     fmt.Println("cron         Do regular work")
-     fmt.Println("limits       Calculate new limits")
-     fmt.Println("orders       Get open orders")
-     fmt.Println("telegram     Start telegram daemon")
-     fmt.Println("updatestats  Update statistics")
+	fmt.Printf("Usage: %s argument\n", os.Args[0])
+	fmt.Println("Arguments:")
+	fmt.Println("cron         Do regular work")
+	fmt.Println("limits       Calculate new limits")
+	fmt.Println("orders       Get open orders")
+	fmt.Println("telegram     Start telegram daemon")
+	fmt.Println("updatestats  Update statistics")
 }
 
 func CheckError(err error) {
-    if err != nil {
-        panic(err)
-    }
+	if err != nil {
+		panic(err)
+	}
 }
 
 func trend1(pair string) {
-        var wr bool = false
+	var wr bool = false
 	var tm1 int64
 	var coeff float64
 	var cls float64
 
-        fmt.Printf("Calculate trend1 %v\n",pair)
+	fmt.Printf("Calculate trend1 %v\n", pair)
 
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        r := new(regression.Regression)
-        r.SetObserved("Close")
-        r.SetVar(0, "Timestamp")
+	r := new(regression.Regression)
+	r.SetObserved("Close")
+	r.SetVar(0, "Timestamp")
 
-        sqlStatement := `
+	sqlStatement := `
         select "timestamp", "close"  from yourcandle
         where pair = $1
 	AND LOWER(exchange) = $2
         and "timestamp" > current_timestamp - interval '4 hour'
 	order by "timestamp" desc;`
 
-        rows, err := db.Query(sqlStatement, pair, exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-        defer rows.Close()
+	rows, err := db.Query(sqlStatement, pair, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
+	defer rows.Close()
 
-	var i int = 0;
-        for rows.Next() && i < 3{
-                var tmstamp time.Time
+	var i int = 0
+	for rows.Next() && i < 3 {
+		var tmstamp time.Time
 		var tmu int64
-                if err := rows.Scan(&tmstamp, &cls); err != nil {
-                        fmt.Println(err)
-                }
-                tmu = tmstamp.Unix()
-		if i==0 {
+		if err := rows.Scan(&tmstamp, &cls); err != nil {
+			fmt.Println(err)
+		}
+		tmu = tmstamp.Unix()
+		if i == 0 {
 			tm1 = tmu
 		}
 		tmu = tmu - tm1
 		i++
-	        r.Train(
+		r.Train(
 			regression.DataPoint(cls, []float64{float64(tmu)}),
 		)
-                wr = true
-                if err != nil {
-                        fmt.Println(err)
-                }
-        }
-        if err := rows.Err(); err != nil {
-                fmt.Println(err)
-        }
-        if wr {
-                r.Run()
-                fmt.Printf("Regression formula:\n%v\n", r.Formula)
-                fmt.Printf("Coeff: %f\n", r.Coeff(0))
-                fmt.Printf("Coeff: %f\n", r.Coeff(1))
-                coeff = r.Coeff(1) * 360000 / cls
-                sqlStatement = `
+		wr = true
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		fmt.Println(err)
+	}
+	if wr {
+		r.Run()
+		fmt.Printf("Regression formula:\n%v\n", r.Formula)
+		fmt.Printf("Coeff: %f\n", r.Coeff(0))
+		fmt.Printf("Coeff: %f\n", r.Coeff(1))
+		coeff = r.Coeff(1) * 360000 / cls
+		sqlStatement = `
                 UPDATE yourlimits
                 SET trend1 = $1
                 WHERE pair = $2
 		AND LOWER(exchange) = $3;`
-                _, err = db.Exec(sqlStatement,coeff,pair,exchange_name)
-                if err != nil {
-                        fmt.Printf("SQL error: %v\n",err)
-                }
-        }
+		_, err = db.Exec(sqlStatement, coeff, pair, exchange_name)
+		if err != nil {
+			fmt.Printf("SQL error: %v\n", err)
+		}
+	}
 }
 
 func trend3(pair string) {
-        var wr bool = false
-        var tm1 int64
+	var wr bool = false
+	var tm1 int64
 	var coeff float64
 	var cls float64
 
-        fmt.Printf("Calculate trend3 %v\n",pair)
+	fmt.Printf("Calculate trend3 %v\n", pair)
 
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        r := new(regression.Regression)
-        r.SetObserved("Close")
-        r.SetVar(0, "Timestamp")
+	r := new(regression.Regression)
+	r.SetObserved("Close")
+	r.SetVar(0, "Timestamp")
 
-        sqlStatement := `
+	sqlStatement := `
         select "timestamp", "close"  from yourcandle
         where pair = $1
 	AND LOWER(exchange) = $2
@@ -1519,74 +1519,74 @@ func trend3(pair string) {
         and "timestamp" <= current_timestamp - interval '1 hours'
         order by "timestamp";`
 
-        rows, err := db.Query(sqlStatement, pair, exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-        defer rows.Close()
+	rows, err := db.Query(sqlStatement, pair, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
+	defer rows.Close()
 
-        var i int = 0;
-        for rows.Next(){
-                var tmstamp time.Time
-                var tmu int64
-                if err := rows.Scan(&tmstamp, &cls); err != nil {
-                        fmt.Println(err)
-                }
-                tmu = tmstamp.Unix()
-                if i==0 {
-                        tm1 = tmu
-                }
-                tmu = tmu - tm1
-                i++
-                r.Train(
-                        regression.DataPoint(cls, []float64{float64(tmu)}),
-                )
-                wr = true
-                if err != nil {
-                        fmt.Println(err)
-                }
-        }
-        if err := rows.Err(); err != nil {
-                fmt.Println(err)
-        }
-        if wr {
-                r.Run()
-                fmt.Printf("Regression formula:\n%v\n", r.Formula)
-                fmt.Printf("Coeff: %f\n", r.Coeff(0))
-                fmt.Printf("Coeff: %f\n", r.Coeff(1))
-                coeff = r.Coeff(1) * 360000 / cls
-                sqlStatement = `
+	var i int = 0
+	for rows.Next() {
+		var tmstamp time.Time
+		var tmu int64
+		if err := rows.Scan(&tmstamp, &cls); err != nil {
+			fmt.Println(err)
+		}
+		tmu = tmstamp.Unix()
+		if i == 0 {
+			tm1 = tmu
+		}
+		tmu = tmu - tm1
+		i++
+		r.Train(
+			regression.DataPoint(cls, []float64{float64(tmu)}),
+		)
+		wr = true
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		fmt.Println(err)
+	}
+	if wr {
+		r.Run()
+		fmt.Printf("Regression formula:\n%v\n", r.Formula)
+		fmt.Printf("Coeff: %f\n", r.Coeff(0))
+		fmt.Printf("Coeff: %f\n", r.Coeff(1))
+		coeff = r.Coeff(1) * 360000 / cls
+		sqlStatement = `
                 UPDATE yourlimits
                 SET trend3 = $1
                 WHERE pair = $2
 		AND LOWER(exchange) = $3;`
-                _, err = db.Exec(sqlStatement,coeff,pair,exchange_name)
-                if err != nil {
-                        fmt.Printf("SQL error: %v\n",err)
-                }
-        }
+		_, err = db.Exec(sqlStatement, coeff, pair, exchange_name)
+		if err != nil {
+			fmt.Printf("SQL error: %v\n", err)
+		}
+	}
 }
 
 func trend2(pair string) {
 	var wr bool = false
-        var tm1 int64
+	var tm1 int64
 	var coeff float64
 	var cls float64
 
-        fmt.Printf("Calculate trend2 %v\n",pair)
+	fmt.Printf("Calculate trend2 %v\n", pair)
 
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        r := new(regression.Regression)
-        r.SetObserved("Close")
-        r.SetVar(0, "Timestamp")
+	r := new(regression.Regression)
+	r.SetObserved("Close")
+	r.SetVar(0, "Timestamp")
 
-        sqlStatement := `
+	sqlStatement := `
         select "timestamp", "close"  from yourcandle
         where pair = $1
 	AND LOWER(exchange) = $2
@@ -1594,56 +1594,56 @@ func trend2(pair string) {
 	and "timestamp" <= current_timestamp - interval '1 hours'
         order by "timestamp";`
 
-        rows, err := db.Query(sqlStatement, pair, exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-        defer rows.Close()
+	rows, err := db.Query(sqlStatement, pair, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
+	defer rows.Close()
 
-        var i int = 0;
-        for rows.Next(){
-                var tmstamp time.Time
-                var tmu int64
-                if err := rows.Scan(&tmstamp, &cls); err != nil {
-                        fmt.Println(err)
-                }
-                tmu = tmstamp.Unix()
-                if i==0 {
-                        tm1 = tmu
-                }
-                tmu = tmu - tm1
-                i++
-                r.Train(
-                        regression.DataPoint(cls, []float64{float64(tmu)}),
-                )
+	var i int = 0
+	for rows.Next() {
+		var tmstamp time.Time
+		var tmu int64
+		if err := rows.Scan(&tmstamp, &cls); err != nil {
+			fmt.Println(err)
+		}
+		tmu = tmstamp.Unix()
+		if i == 0 {
+			tm1 = tmu
+		}
+		tmu = tmu - tm1
+		i++
+		r.Train(
+			regression.DataPoint(cls, []float64{float64(tmu)}),
+		)
 		wr = true
-                if err != nil {
-                        fmt.Println(err)
-                }
-        }
-        if err := rows.Err(); err != nil {
-                fmt.Println(err)
-        }
-        if wr {
-                r.Run()
-                fmt.Printf("Regression formula:\n%v\n", r.Formula)
-                fmt.Printf("Coeff: %f\n", r.Coeff(0))
-                fmt.Printf("Coeff: %f\n", r.Coeff(1))
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		fmt.Println(err)
+	}
+	if wr {
+		r.Run()
+		fmt.Printf("Regression formula:\n%v\n", r.Formula)
+		fmt.Printf("Coeff: %f\n", r.Coeff(0))
+		fmt.Printf("Coeff: %f\n", r.Coeff(1))
 		coeff = r.Coeff(1) * 360000 / cls
-	        sqlStatement = `
+		sqlStatement = `
         	UPDATE yourlimits 
         	SET trend2 = $1
         	WHERE pair = $2
 		AND LOWER(exchange) = $3;`
-        	_, err = db.Exec(sqlStatement,coeff,pair,exchange_name)
-        	if err != nil {
-                	fmt.Printf("SQL error: %v\n",err)
-        	}
+		_, err = db.Exec(sqlStatement, coeff, pair, exchange_name)
+		if err != nil {
+			fmt.Printf("SQL error: %v\n", err)
+		}
 	}
 }
 
 func calculateTrends() {
-        for _, v := range pairs {
+	for _, v := range pairs {
 		trend1(v)
 		trend2(v)
 		trend3(v)
@@ -1651,248 +1651,248 @@ func calculateTrends() {
 }
 
 func processOrders() {
-        fmt.Println("Process orders")
+	fmt.Println("Process orders")
 
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         select id, pair, asset, price, amount, side, timestamp, order_type from yourorder
         where status in ('NEW','OPEN')
 	AND LOWER(exchange) = $1
         order by "timestamp";`
 
-        rows, err := db.Query(sqlStatement,exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-        defer rows.Close()
+	rows, err := db.Query(sqlStatement, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
+	defer rows.Close()
 
-        for rows.Next(){
+	for rows.Next() {
 		var pair string
 		var crtime time.Time
-        	var order map[string]interface{}
+		var order map[string]interface{}
 		var o Order
-                if err := rows.Scan(&o.id, &pair, &o.asset, &o.price, &o.amount, &o.order_side, &crtime, &o.order_type); err != nil {
-                        fmt.Println(err)
-                } else {
-			fmt.Printf("Pair: %s, OrderID: %s\n",pair, o.id)
-			out :=getOrder(pair, o.id)
+		if err := rows.Scan(&o.id, &pair, &o.asset, &o.price, &o.amount, &o.order_side, &crtime, &o.order_type); err != nil {
+			fmt.Println(err)
+		} else {
+			fmt.Printf("Pair: %s, OrderID: %s\n", pair, o.id)
+			out := getOrder(pair, o.id)
 			currencies := strings.Split(pair, "-")
 			o.base_currency = currencies[0]
-                        o.quote_currency = currencies[1]
+			o.quote_currency = currencies[1]
 			o.update_time = float64(crtime.Unix())
-                	err := json.Unmarshal(out, &order)
-                	if err != nil { // Handle JSON errors
-                        	fmt.Printf("JSON error: %v\n", err)
-                        	fmt.Printf("JSON input: %v\n",string(out))
-                        	continue
-                	}
+			err := json.Unmarshal(out, &order)
+			if err != nil { // Handle JSON errors
+				fmt.Printf("JSON error: %v\n", err)
+				fmt.Printf("JSON input: %v\n", string(out))
+				continue
+			}
 			if order["exchange"] != nil {
 				o.exchange = strings.ToLower(order["exchange"].(string))
 			}
-                        o.id = order["id"].(string)
+			o.id = order["id"].(string)
 			if order["base_currency"] != nil {
-                        	o.base_currency = order["base_currency"].(string)
+				o.base_currency = order["base_currency"].(string)
 			}
 			if order["quote_currency"] != nil {
-                        	o.quote_currency = order["quote_currency"].(string)
+				o.quote_currency = order["quote_currency"].(string)
 			}
-                        if order["asset_type"] != nil {
+			if order["asset_type"] != nil {
 				o.asset = order["asset_type"].(string)
 			}
 			if order["order_side"] != nil {
-                        	o.order_side = order["order_side"].(string)
-			} 
+				o.order_side = order["order_side"].(string)
+			}
 			if order["order_type"] != nil {
-                        	o.order_type = order["order_type"].(string)
+				o.order_type = order["order_type"].(string)
 			}
 			if order["creation_time"] != nil {
-                        	o.creation_time = order["creation_time"].(float64)
+				o.creation_time = order["creation_time"].(float64)
 			}
 			if order["update_time"] != nil {
-	                        o.update_time = order["update_time"].(float64)
+				o.update_time = order["update_time"].(float64)
 			}
-                        o.status = order["status"].(string)
+			o.status = order["status"].(string)
 			if order["price"] != nil {
-                        	o.price = order["price"].(float64)
+				o.price = order["price"].(float64)
 			}
 			if order["amount"] != nil {
-                        	o.amount = order["amount"].(float64)
+				o.amount = order["amount"].(float64)
 			}
 			if order["cost"] != nil {
-                        	o.cost = order["cost"].(float64)
+				o.cost = order["cost"].(float64)
 			}
-                        fmt.Println(o)
+			fmt.Println(o)
 
-			storeOrder(o.exchange,o.id,o.base_currency+"-"+o.quote_currency,o.asset,o.order_side,o.order_type,o.update_time,o.status,o.price,o.amount)
+			storeOrder(o.exchange, o.id, o.base_currency+"-"+o.quote_currency, o.asset, o.order_side, o.order_type, o.update_time, o.status, o.price, o.amount)
 
 			if (o.status == "FILLED" || o.status == "FILLED_FULLY" || o.status == "CLOSED" || o.status == "FINISHED") && o.order_side == "BUY" {
-				insertPositions(o.exchange,o.base_currency+"-"+o.quote_currency,o.order_side,time.Unix(int64(o.update_time), 0),o.price,o.amount)
-                        	submitTelegram(exchange_name+": position: "+o.base_currency+"-"+o.quote_currency+" bought")
+				insertPositions(o.exchange, o.base_currency+"-"+o.quote_currency, o.order_side, time.Unix(int64(o.update_time), 0), o.price, o.amount)
+				submitTelegram(exchange_name + ": position: " + o.base_currency + "-" + o.quote_currency + " bought")
 			}
-                        if (o.status == "FILLED" || o.status == "FILLED_FULLY" || o.status == "CLOSED" || o.status == "FINISHED") && o.order_side == "SELL" {
+			if (o.status == "FILLED" || o.status == "FILLED_FULLY" || o.status == "CLOSED" || o.status == "FINISHED") && o.order_side == "SELL" {
 				deletePositions(o.exchange, o.base_currency+"-"+o.quote_currency)
-                                submitTelegram(exchange_name+": position: "+o.base_currency+"-"+o.quote_currency+" sold")
-                        }
+				submitTelegram(exchange_name + ": position: " + o.base_currency + "-" + o.quote_currency + " sold")
+			}
 		}
-        }
+	}
 }
 
 func buyOrders() {
-        var pack map[string]interface{}
-        var resp map[string]interface{}
-        var o Order
+	var pack map[string]interface{}
+	var resp map[string]interface{}
+	var o Order
 
-        parm,err := getParms("DoTrade")
-        if err != nil {
-                fmt.Println("Trades not allowed")
-                return
-        }
-        if parm.intp != 13579 {
-                fmt.Println("Trades not allowed")
-                return
-        }
-        parm,err = getParms("btcfall")
-        if err == nil {
-                fmt.Println("Trades not allowed, BTC is falling")
-                return
-        }
-        for i, v := range tradepairs {
-                fmt.Printf("%d, Value: %v\n", i, v )
-                out := getOrders(v)
+	parm, err := getParms("DoTrade")
+	if err != nil {
+		fmt.Println("Trades not allowed")
+		return
+	}
+	if parm.intp != 13579 {
+		fmt.Println("Trades not allowed")
+		return
+	}
+	parm, err = getParms("btcfall")
+	if err == nil {
+		fmt.Println("Trades not allowed, BTC is falling")
+		return
+	}
+	for i, v := range tradepairs {
+		fmt.Printf("%d, Value: %v\n", i, v)
+		out := getOrders(v)
 
-                if len(string(out)) < 25 {
-                        fmt.Println("No open order")
-                        newprice,newamount,err := getBuyPriceNew(v)
-                        if err != nil {
-                                fmt.Printf("Price error: %v\n", err)
-                                continue
-                        }
-                        if newprice > 0 {
-                                fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
-                                out := submitOrder(v,"BUY","LIMIT",newamount,newprice,"automatic-new")
-                                fmt.Println(string(out))
-                        }
-                        continue
-                }
+		if len(string(out)) < 25 {
+			fmt.Println("No open order")
+			newprice, newamount, err := getBuyPriceNew(v)
+			if err != nil {
+				fmt.Printf("Price error: %v\n", err)
+				continue
+			}
+			if newprice > 0 {
+				fmt.Printf("Price: %f, Amount: %f\n", newprice, float64(invest_amount)/newprice)
+				out := submitOrder(v, "BUY", "LIMIT", newamount, newprice, "automatic-new")
+				fmt.Println(string(out))
+			}
+			continue
+		}
 
-                err := json.Unmarshal(out, &pack)
-                if err != nil { // Handle JSON errors
-                        fmt.Printf("JSON error: %v\n", err)
-                        fmt.Printf("JSON input: %v\n",string(out))
-                        continue
-                }
-                orders := pack["orders"].([]interface{})
-                for _, order := range orders {
-                        ord := order.(map[string]interface{})
-                        o.exchange = ord["exchange"].(string)
-                        o.id = ord["id"].(string)
-                        o.order_side = ord["order_side"].(string)
-                        o.price = ord["price"].(float64)
+		err := json.Unmarshal(out, &pack)
+		if err != nil { // Handle JSON errors
+			fmt.Printf("JSON error: %v\n", err)
+			fmt.Printf("JSON input: %v\n", string(out))
+			continue
+		}
+		orders := pack["orders"].([]interface{})
+		for _, order := range orders {
+			ord := order.(map[string]interface{})
+			o.exchange = ord["exchange"].(string)
+			o.id = ord["id"].(string)
+			o.order_side = ord["order_side"].(string)
+			o.price = ord["price"].(float64)
 			if o.order_side == "BUY" {
-	                        fmt.Printf("E: %v, ID: %v, P: %f\n",o.exchange,o.id,o.price)
-				out := cancelOrder(v,o.id)
+				fmt.Printf("E: %v, ID: %v, P: %f\n", o.exchange, o.id, o.price)
+				out := cancelOrder(v, o.id)
 				fmt.Println(string(out))
 				err := json.Unmarshal(out, &resp)
-		                if err != nil { // Handle JSON errors
-                		        fmt.Printf("JSON error: %v\n", err)
-                        		fmt.Printf("JSON input: %v\n",string(out))
-                        		continue
-                		}
+				if err != nil { // Handle JSON errors
+					fmt.Printf("JSON error: %v\n", err)
+					fmt.Printf("JSON input: %v\n", string(out))
+					continue
+				}
 				status := resp["status"].(string)
 				if status == "success" {
-		                        newprice,newamount,err := getBuyPriceNew(v)
-                		        if err != nil {
-                                		fmt.Printf("Price error: %v\n", err)
-                                		continue
-                        		}
-                        		if newprice > 0 {
-                                		fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
-                                		out := submitOrder(v,"BUY","LIMIT",newamount,newprice,"automatic-new")
-                                		fmt.Println(string(out))
-                        		}
+					newprice, newamount, err := getBuyPriceNew(v)
+					if err != nil {
+						fmt.Printf("Price error: %v\n", err)
+						continue
+					}
+					if newprice > 0 {
+						fmt.Printf("Price: %f, Amount: %f\n", newprice, float64(invest_amount)/newprice)
+						out := submitOrder(v, "BUY", "LIMIT", newamount, newprice, "automatic-new")
+						fmt.Println(string(out))
+					}
 				}
 			}
-                }
-        }
+		}
+	}
 }
 
 func sellOrders() {
-        var pack map[string]interface{}
-        var resp map[string]interface{}
-        var o Order
+	var pack map[string]interface{}
+	var resp map[string]interface{}
+	var o Order
 
-        parm,err := getParms("DoTrade")
-        if err != nil {
+	parm, err := getParms("DoTrade")
+	if err != nil {
 		fmt.Println("Trades not allowed 1")
-                return
-        }
-        if parm.intp != 13579 {
-                fmt.Println("Trades not allowed 2")
-                return
-        }
+		return
+	}
+	if parm.intp != 13579 {
+		fmt.Println("Trades not allowed 2")
+		return
+	}
 
-        for i, v := range tradepairs {
-                fmt.Printf("%d, Value: %v\n", i, v )
-                out := getOrders(v)
+	for i, v := range tradepairs {
+		fmt.Printf("%d, Value: %v\n", i, v)
+		out := getOrders(v)
 
-                if len(string(out)) < 25 {
-                        fmt.Println("No open order")
-                        newprice,newamount,err := getSellPrice(v)
-                        if err != nil {
-                                fmt.Printf("Price error: %v\n", err)
-                                continue
-                        }
-			if newprice > 0 {
-                        	fmt.Printf("Price: %f, Amount: %f\n",newprice,float64(invest_amount)/newprice)
-                        	out := submitOrder(v,"SELL","LIMIT",newamount,newprice,"automatic-new")
-                        	fmt.Println(string(out))
+		if len(string(out)) < 25 {
+			fmt.Println("No open order")
+			newprice, newamount, err := getSellPrice(v)
+			if err != nil {
+				fmt.Printf("Price error: %v\n", err)
+				continue
 			}
-                        continue
-                }
+			if newprice > 0 {
+				fmt.Printf("Price: %f, Amount: %f\n", newprice, float64(invest_amount)/newprice)
+				out := submitOrder(v, "SELL", "LIMIT", newamount, newprice, "automatic-new")
+				fmt.Println(string(out))
+			}
+			continue
+		}
 
-                err := json.Unmarshal(out, &pack)
-                if err != nil { // Handle JSON errors
-                        fmt.Printf("JSON error: %v\n", err)
-                        fmt.Printf("JSON input: %v\n",string(out))
-                        continue
-                }
-                orders := pack["orders"].([]interface{})
-                for _, order := range orders {
-                        ord := order.(map[string]interface{})
-                        o.exchange = ord["exchange"].(string)
-                        o.id = ord["id"].(string)
-                        o.order_side = ord["order_side"].(string)
-                        o.price = ord["price"].(float64)
-                        if o.order_side == "SELL" {
-                                fmt.Printf("E: %v, ID: %v, P: %f\n",o.exchange,o.id,o.price)
-                                out := cancelOrder(v,o.id)
-                                fmt.Println(string(out))
-                                err := json.Unmarshal(out, &resp)
-                                if err != nil { // Handle JSON errors
-                                        fmt.Printf("JSON error: %v\n", err)
-                                        fmt.Printf("JSON input: %v\n",string(out))
-                                        continue
-                                }
-                                status := resp["status"].(string)
-                                if status == "success" {
-                                        newprice,newamount,err := getSellPrice(v)
-                                        if err != nil {
-                                                fmt.Printf("Price error: %v\n", err)
-                                                continue
-                                        }
-                                        fmt.Printf("Price: %f, Amount: %f\n",newprice,newamount)
-                                        out := submitOrder(v,"SELL","LIMIT",newamount,newprice,"automatic-update")
-                                        fmt.Println(string(out))
-                                }
-                        }
-                }
-        }
+		err := json.Unmarshal(out, &pack)
+		if err != nil { // Handle JSON errors
+			fmt.Printf("JSON error: %v\n", err)
+			fmt.Printf("JSON input: %v\n", string(out))
+			continue
+		}
+		orders := pack["orders"].([]interface{})
+		for _, order := range orders {
+			ord := order.(map[string]interface{})
+			o.exchange = ord["exchange"].(string)
+			o.id = ord["id"].(string)
+			o.order_side = ord["order_side"].(string)
+			o.price = ord["price"].(float64)
+			if o.order_side == "SELL" {
+				fmt.Printf("E: %v, ID: %v, P: %f\n", o.exchange, o.id, o.price)
+				out := cancelOrder(v, o.id)
+				fmt.Println(string(out))
+				err := json.Unmarshal(out, &resp)
+				if err != nil { // Handle JSON errors
+					fmt.Printf("JSON error: %v\n", err)
+					fmt.Printf("JSON input: %v\n", string(out))
+					continue
+				}
+				status := resp["status"].(string)
+				if status == "success" {
+					newprice, newamount, err := getSellPrice(v)
+					if err != nil {
+						fmt.Printf("Price error: %v\n", err)
+						continue
+					}
+					fmt.Printf("Price: %f, Amount: %f\n", newprice, newamount)
+					out := submitOrder(v, "SELL", "LIMIT", newamount, newprice, "automatic-update")
+					fmt.Println(string(out))
+				}
+			}
+		}
+	}
 }
 
 func genTotp() {
@@ -1932,25 +1932,25 @@ func testTotp(passcode string) {
 }
 
 func allowTrade(passcode string) {
-        valid := totp.Validate(passcode, key_secret)
-        if valid {
-        	insertParms("DoTrade", 13579, 0, "", time.Now(), time.Now(), time.Now())
-                println("Trade allowed")
-        } else {
-                println("Wrong passcode!")
-        }
+	valid := totp.Validate(passcode, key_secret)
+	if valid {
+		insertParms("DoTrade", 13579, 0, "", time.Now(), time.Now(), time.Now())
+		println("Trade allowed")
+	} else {
+		println("Wrong passcode!")
+	}
 }
 
 func writeChart(pair string) {
-        var tmstp time.Time
-        var value float64
+	var tmstp time.Time
+	var value float64
 
-        fmt.Printf("Write chart %s\n",pair)
+	fmt.Printf("Write chart %s\n", pair)
 
-	f, err := os.Create(wwwpath+"/"+exchange_name+"-"+pair+".html")
+	f, err := os.Create(wwwpath + "/" + exchange_name + "-" + pair + ".html")
 
 	if err != nil {
-        	panic(err)
+		panic(err)
 	}
 
 	defer f.Close()
@@ -1980,34 +1980,34 @@ func writeChart(pair string) {
 
 	_, err = f.WriteString(header)
 
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         select "timestamp", "close"  from yourcandle
         where pair = $1
 	and LOWER(exchange) = $2
         and "timestamp" > current_timestamp - interval '35 days'
         order by "timestamp";`
 
-        rows, err := db.Query(sqlStatement,pair,exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-        defer rows.Close()
+	rows, err := db.Query(sqlStatement, pair, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
+	defer rows.Close()
 
-        for rows.Next(){
-                if err := rows.Scan(&tmstp, &value); err != nil {
-                        fmt.Println(err)
-                }
-		_, err = f.WriteString(fmt.Sprintf("{x: '%s', y: %f},\n",tmstp.Format("2006-01-02T15:04:05"),value)) 
-        }
+	for rows.Next() {
+		if err := rows.Scan(&tmstp, &value); err != nil {
+			fmt.Println(err)
+		}
+		_, err = f.WriteString(fmt.Sprintf("{x: '%s', y: %f},\n", tmstp.Format("2006-01-02T15:04:05"), value))
+	}
 
-        footer := `
+	footer := `
 ]
   );
   var options = {
@@ -2019,86 +2019,86 @@ func writeChart(pair string) {
 </body>
 </html>
         `
-        _, err = f.WriteString(footer)
+	_, err = f.WriteString(footer)
 }
 
 func writeCharts() {
-        for _, v := range pairs {
-                writeChart(v)
-        }
+	for _, v := range pairs {
+		writeChart(v)
+	}
 }
 
 func processMinMax() {
-        for _, v := range pairs {
-                calculateMinMax(v)
-        }
+	for _, v := range pairs {
+		calculateMinMax(v)
+	}
 }
 
-func calculateProfit(){
+func calculateProfit() {
 	var price float64
 	var amount float64
 	var side string
 
-        fmt.Println("Calculate profit")
+	fmt.Println("Calculate profit")
 
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         select price, amount, side from yourorder
         where LOWER(exchange) = $1
 	AND status = 'FILLED'
         order by pair, "timestamp";`
 
-        rows, err := db.Query(sqlStatement, exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-        defer rows.Close()
+	rows, err := db.Query(sqlStatement, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
+	defer rows.Close()
 
-//        var i int = 0;
-        for rows.Next(){
-                if err := rows.Scan(&price, &amount, &side); err != nil {
-                        fmt.Println(err)
-                }
-        }
-        if err := rows.Err(); err != nil {
-                fmt.Println(err)
-        }
+	//        var i int = 0;
+	for rows.Next() {
+		if err := rows.Scan(&price, &amount, &side); err != nil {
+			fmt.Println(err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		fmt.Println(err)
+	}
 }
 
 func forceOrder(pair string, price string, passcode string) {
 	var newamount float64
 
-        valid := totp.Validate(passcode, key_secret)
-        if valid {
-        	newprice, err := strconv.ParseFloat(price, 64)
+	valid := totp.Validate(passcode, key_secret)
+	if valid {
+		newprice, err := strconv.ParseFloat(price, 64)
 		if err != nil {
 			panic(err)
 		}
-		newamount = float64(invest_amount)/newprice
-                fmt.Printf("Price: %f, Amount: %f\n",newprice,newamount)
-                out := submitOrder(pair,"BUY","LIMIT",newamount,newprice,"force-order")
-                fmt.Println(string(out))
-        } else {
-                println("Invalid passcode!")
-        }
+		newamount = float64(invest_amount) / newprice
+		fmt.Printf("Price: %f, Amount: %f\n", newprice, newamount)
+		out := submitOrder(pair, "BUY", "LIMIT", newamount, newprice, "force-order")
+		fmt.Println(string(out))
+	} else {
+		println("Invalid passcode!")
+	}
 }
 
 func activatePosition(pair string) {
-        fmt.Printf("Activate position: %s\n", pair)
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Printf("Activate position: %s\n", pair)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
 	update yourposition
 	set active = true
 	where rid =
@@ -2121,108 +2121,108 @@ func activatePosition(pair string) {
         and l.pair = $2))
 	order by rate 
 	limit 1);`
-        _, err = db.Exec(sqlStatement,exchange_name,pair)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement, exchange_name, pair)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 }
 
 func activatePositions() {
-        for _, v := range tradepairs {
-                activatePosition(v)
-        }
+	for _, v := range tradepairs {
+		activatePosition(v)
+	}
 }
 
 func deactivatePositions() {
-        fmt.Println("Deactivate position")
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Println("Deactivate position")
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
         update yourposition
         set active = false
         where LOWER(exchange) = $1
 	and notrade = false;`
-        _, err = db.Exec(sqlStatement,exchange_name)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement, exchange_name)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 
 }
 
-func runTicker(pair string, side string, limitstr string, currentstr string, amountstr string){
+func runTicker(pair string, side string, limitstr string, currentstr string, amountstr string) {
 	var level float64
 	var tmthen int64 = time.Now().Unix()
 	var tmnow int64 = tmthen
 	var done bool = false
 
 	current, _ := strconv.ParseFloat(currentstr, 64)
-        limit, _ := strconv.ParseFloat(limitstr, 64)
-        amount, _ := strconv.ParseFloat(amountstr, 64)
+	limit, _ := strconv.ParseFloat(limitstr, 64)
+	amount, _ := strconv.ParseFloat(amountstr, 64)
 	side = strings.ToUpper(side)
-        pair = strings.ToUpper(pair)
+	pair = strings.ToUpper(pair)
 
 	level = limit + ((current - limit) / 2)
 
 	var i int64 = 0
 	for i < 860 && done == false {
-	        out, err := exec.Command(gctcmd, "getticker",
-	        "--exchange",exchange_name,"--asset","SPOT","--pair",pair).Output()
-	        if err != nil {
-	                fmt.Printf("Command finished with error: %v", err)
-	        } else {
-//			fmt.Println(string(out))
+		out, err := exec.Command(gctcmd, "getticker",
+			"--exchange", exchange_name, "--asset", "SPOT", "--pair", pair).Output()
+		if err != nil {
+			fmt.Printf("Command finished with error: %v", err)
+		} else {
+			//			fmt.Println(string(out))
 			outstr := string(out)
 			pos := strings.Index(outstr, "\"last\"") + 8
-			laststr := string(outstr[pos:pos+20])
+			laststr := string(outstr[pos : pos+20])
 			lastarr := strings.Split(laststr, ",")
 			laststr = lastarr[0]
 			last, _ := strconv.ParseFloat(laststr, 64)
-//			submitTelegram(fmt.Sprintf("Last: %f, Current: %f, Limit: %f, Level: %f\n",last, current, limit, level))
+			//			submitTelegram(fmt.Sprintf("Last: %f, Current: %f, Limit: %f, Level: %f\n",last, current, limit, level))
 			if side == "BUY" && last > level {
-				amount := float64(invest_amount)/limit
-                                _ = submitOrder(pair,"BUY","LIMIT",amount,limit,"ticker")
-				submitTelegram(fmt.Sprintf(exchange_name+": ticker ordered %f %s at %f\n",amount,pair,limit))
+				amount := float64(invest_amount) / limit
+				_ = submitOrder(pair, "BUY", "LIMIT", amount, limit, "ticker")
+				submitTelegram(fmt.Sprintf(exchange_name+": ticker ordered %f %s at %f\n", amount, pair, limit))
 				done = true
 			}
-                        if side == "SELL" && last < level {
-                                _ = submitOrder(pair,"SELL","LIMIT",amount,limit,"ticker")
-                                submitTelegram(fmt.Sprintf(exchange_name+": ticker offered %f %s at %f\n",amount,pair,limit))
+			if side == "SELL" && last < level {
+				_ = submitOrder(pair, "SELL", "LIMIT", amount, limit, "ticker")
+				submitTelegram(fmt.Sprintf(exchange_name+": ticker offered %f %s at %f\n", amount, pair, limit))
 				done = true
-                        }
-		} 
+			}
+		}
 		time.Sleep(15 * time.Second)
 		tmnow = time.Now().Unix()
-		i = tmnow - tmthen 
+		i = tmnow - tmthen
 	}
 }
 
 func isEnoughMoney() bool {
-        fmt.Println("Is there enough money?")
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	fmt.Println("Is there enough money?")
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        var amount float64
+	var amount float64
 
-        sqlStatement := `
+	sqlStatement := `
         select amount from youraccount
         where LOWER(exchange) = $1
 	and currency in ($2,$3)
 	limit 1;`
 
-        err = db.QueryRow(sqlStatement, exchange_name, curr_quote, "Z"+curr_quote).Scan(&amount)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
+	err = db.QueryRow(sqlStatement, exchange_name, curr_quote, "Z"+curr_quote).Scan(&amount)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
 		return false
-        } else {
+	} else {
 		if amount > float64(invest_amount) {
 			return true
 		}
@@ -2235,98 +2235,98 @@ func jhtest() {
 }
 
 func storeTransactions(pair string, amount float64, amount_quote float64, price float64, timest string, fee float64, id string) {
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
 	var layout string = "2006-01-02 15:04:05"
 	t, err := time.Parse(layout, timest)
-        if err != nil {
-                panic(err)
-        }
+	if err != nil {
+		panic(err)
+	}
 
-        sqlStatement := `
+	sqlStatement := `
         UPDATE yourtransaction
 	set amount = $2, amount_quote = $3, price = $4, fee = $5
         where exchange = $1 and timestamp = $6 and pair = $7 and id = $8;`
-        info, err := db.Exec(sqlStatement, exchange_name, amount, amount_quote, price, fee, t, pair, id)
-        if err != nil {
-                panic(err)
-        }
+	info, err := db.Exec(sqlStatement, exchange_name, amount, amount_quote, price, fee, t, pair, id)
+	if err != nil {
+		panic(err)
+	}
 	count, err := info.RowsAffected()
-    	if err != nil {
-        	panic(err)
-    	}
-        if count == 0 { 
-	        sqlStatement := `
+	if err != nil {
+		panic(err)
+	}
+	if count == 0 {
+		sqlStatement := `
         	INSERT INTO yourtransaction (exchange, timestamp, pair, amount, price, amount_quote, fee, id)
         	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-        	_, err = db.Exec(sqlStatement, exchange_name, timest, pair, amount, price, amount_quote, fee, id)
-        	if err != nil {
-                	fmt.Printf("SQL error: %v\n",err)
-        	}
-        }
+		_, err = db.Exec(sqlStatement, exchange_name, timest, pair, amount, price, amount_quote, fee, id)
+		if err != nil {
+			fmt.Printf("SQL error: %v\n", err)
+		}
+	}
 }
 
 func getTransactionsAll() {
-        var transactions []interface{}
-        out, err := exec.Command(gctcmd, "gettransactions",
-        "-e",exchange_name,"-a","SPOT").Output()
-        if err != nil {
-                fmt.Printf("Command finished with error: %v", err)
-        }
-//      fmt.Printf(string(out))
+	var transactions []interface{}
+	out, err := exec.Command(gctcmd, "gettransactions",
+		"-e", exchange_name, "-a", "SPOT").Output()
+	if err != nil {
+		fmt.Printf("Command finished with error: %v", err)
+	}
+	//      fmt.Printf(string(out))
 
-        err = json.Unmarshal(out, &transactions)
-        if err != nil { // Handle JSON errors
-                fmt.Printf("JSON error: %v\n", err)
-                fmt.Printf("JSON input: %v\n", string(out))
-                return
-        }
-        for _, transaction := range transactions {
-                trans := transaction.(map[string]interface{})
-                fmt.Println(trans)
-                if trans != nil {
-                        fee := trans["fee"].(float64)
-                        amount := trans["amount"].(float64)
-                        amount_quote := trans["amount_quote"].(float64)
-                        price := trans["price"].(float64)
-                        timest := trans["timestamp"].(string)
-                        id := trans["id"].(string)
+	err = json.Unmarshal(out, &transactions)
+	if err != nil { // Handle JSON errors
+		fmt.Printf("JSON error: %v\n", err)
+		fmt.Printf("JSON input: %v\n", string(out))
+		return
+	}
+	for _, transaction := range transactions {
+		trans := transaction.(map[string]interface{})
+		fmt.Println(trans)
+		if trans != nil {
+			fee := trans["fee"].(float64)
+			amount := trans["amount"].(float64)
+			amount_quote := trans["amount_quote"].(float64)
+			price := trans["price"].(float64)
+			timest := trans["timestamp"].(string)
+			id := trans["id"].(string)
 			pair := trans["pair"].(string)
-                        storeTransactions(pair, amount, amount_quote, price, timest, fee, id)
-                }
-        }
+			storeTransactions(pair, amount, amount_quote, price, timest, fee, id)
+		}
+	}
 }
 
 func getTransaction(pair string) {
 	var transactions []interface{}
-        out, err := exec.Command(gctcmd, "gettransactions",
-        "-e",exchange_name,"-a","SPOT","--pair",pair).Output()
-        if err != nil {
-                fmt.Printf("Command finished with error: %v", err)
-        }
-//	fmt.Printf(string(out))
+	out, err := exec.Command(gctcmd, "gettransactions",
+		"-e", exchange_name, "-a", "SPOT", "--pair", pair).Output()
+	if err != nil {
+		fmt.Printf("Command finished with error: %v", err)
+	}
+	//	fmt.Printf(string(out))
 
 	err = json.Unmarshal(out, &transactions)
 	if err != nil { // Handle JSON errors
-        	fmt.Printf("JSON error: %v\n", err)
-        	fmt.Printf("JSON input: %v\n", string(out))
-        	return
+		fmt.Printf("JSON error: %v\n", err)
+		fmt.Printf("JSON input: %v\n", string(out))
+		return
 	}
 
 	for _, transaction := range transactions {
-        	trans := transaction.(map[string]interface{})
-                fmt.Println(trans)
-        	if trans != nil {
+		trans := transaction.(map[string]interface{})
+		fmt.Println(trans)
+		if trans != nil {
 			fee := trans["fee"].(float64)
 			amount := trans["amount"].(float64)
-                	amount_quote := trans["amount_quote"].(float64)
-                	price := trans["price"].(float64)
-                	timest := trans["timestamp"].(string)
+			amount_quote := trans["amount_quote"].(float64)
+			price := trans["price"].(float64)
+			timest := trans["timestamp"].(string)
 			id := trans["id"].(string)
 			storeTransactions(pair, amount, amount_quote, price, timest, fee, id)
 		}
@@ -2334,88 +2334,88 @@ func getTransaction(pair string) {
 }
 
 func getTransactions() {
-        for _, v := range tradepairs {
-                getTransaction(v)
-        }
+	for _, v := range tradepairs {
+		getTransaction(v)
+	}
 }
 
 func writeReport() {
-        var sum float64
+	var sum float64
 	var exchange string
 	var valdate time.Time
 	var olddate time.Time
 	var parmstr string
 	var docomma bool = false
 	var out string
-        var header string
+	var header string
 
-        fmt.Println("Write report")
+	fmt.Println("Write report")
 
-	f, err := os.Create(wwwpath+"/reports/profit.html")
+	f, err := os.Create(wwwpath + "/reports/profit.html")
 
 	if err != nil {
-        	panic(err)
+		panic(err)
 	}
 
 	defer f.Close()
 
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
 	select DISTINCT exchange
 	FROM yoursum
 	ORDER BY exchange ;`
 
-	header = `['Day'`;
+	header = `['Day'`
 
-        rows, err := db.Query(sqlStatement)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-        defer rows.Close()
+	rows, err := db.Query(sqlStatement)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
+	defer rows.Close()
 
-        for rows.Next(){
-                if err := rows.Scan(&exchange); err != nil {
-                        fmt.Println(err)
-                }
-		header += ", '" + exchange + "'";
-        }
-	header += "],\n";
+	for rows.Next() {
+		if err := rows.Scan(&exchange); err != nil {
+			fmt.Println(err)
+		}
+		header += ", '" + exchange + "'"
+	}
+	header += "],\n"
 
-        sqlStatement = `
+	sqlStatement = `
         select exchange,valdate, sum from yoursum
         where valdate > current_date - interval '35 days'
         order by valdate, exchange;`
 
-        rows, err = db.Query(sqlStatement)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-        defer rows.Close()
+	rows, err = db.Query(sqlStatement)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
+	defer rows.Close()
 
 	parmstr = ""
 	olddate = time.Date(2009, 11, 17, 0, 0, 0, 0, time.UTC)
 
-        for rows.Next(){
-                if err := rows.Scan(&exchange, &valdate, &sum); err != nil {
-                        fmt.Println(err)
-                }
+	for rows.Next() {
+		if err := rows.Scan(&exchange, &valdate, &sum); err != nil {
+			fmt.Println(err)
+		}
 		if olddate != valdate {
 			olddate = valdate
 			if docomma {
-				 parmstr += "],\n"
+				parmstr += "],\n"
 			}
-			parmstr += "\n"+`['`+valdate.Format("2006-01-02")+`', ` + fmt.Sprintf("%f",sum)
+			parmstr += "\n" + `['` + valdate.Format("2006-01-02") + `', ` + fmt.Sprintf("%f", sum)
 		} else {
-			parmstr += `, `+fmt.Sprintf("%f",sum)
+			parmstr += `, ` + fmt.Sprintf("%f", sum)
 		}
 		docomma = true
-        }
+	}
 
 	parmstr += "]"
 
@@ -2429,8 +2429,8 @@ func writeReport() {
 
       function drawChart() {
         var data = google.visualization.arrayToDataTable([` +
-            header + parmstr +
-         `]);
+		header + parmstr +
+		`]);
 
         var options = {
           title: 'Exchange Performance',
@@ -2449,20 +2449,19 @@ func writeReport() {
 </html>
 
  `
-        _, err = f.WriteString(out)
+	_, err = f.WriteString(out)
 }
-
 
 func calculateSum() {
 	fmt.Println("Calculate sum")
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
 	delete from yoursum where valdate = current_date;
 	insert into yoursum (exchange,sum,valdate)
 	select exchange, sum(amount) as amount, current_date from
@@ -2480,107 +2479,107 @@ func calculateSum() {
 	) t
 	group by t.exchange;
 	`
-        _, err = db.Exec(sqlStatement)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+	_, err = db.Exec(sqlStatement)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
 
 }
 
-func btcReference(){
-        fmt.Println("BTC reference")
+func btcReference() {
+	fmt.Println("BTC reference")
 
 	var trend1 float64
-        var trend2 float64
-        var trend3 float64
-        var lastcandle float64
+	var trend2 float64
+	var trend3 float64
+	var lastcandle float64
 	var btcf bool = false
 
-        _,err := getParms("btcfall")
-        if err == nil {
-                btcf = true
-        }
+	_, err := getParms("btcfall")
+	if err == nil {
+		btcf = true
+	}
 
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
- 
-        sqlStatement := `
+	defer db.Close()
+
+	sqlStatement := `
         select trend1, trend2, trend3, lastcandle from yourlimits
 	where pair = 'BTC-EUR' 
 	and exchange = $1;`
 
 	err = db.QueryRow(sqlStatement, exchange_name).Scan(&trend1, &trend2, &trend3, &lastcandle)
 	if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
+		fmt.Printf("SQL error: %v\n", err)
+	}
 
 	if (btcf == false) && (((trend1 < -0.4) && (trend2 < -0.4) && (trend3 < -0.4)) || (trend1 < -2)) {
 		submitTelegram("BTC is falling, buying is paused\n")
 		fmt.Println("BTC is falling, buying is paused")
 		insertParms("btcfall", 1, float64(0), "", time.Now(), time.Now(), time.Now())
 	}
-        if (btcf == true) && (trend1 > 0) && (trend2 > 0) && (trend3 > 0) {
-                submitTelegram("BTC is rising, buying is started\n")
-                fmt.Println("BTC is rising, buying is started")
+	if (btcf == true) && (trend1 > 0) && (trend2 > 0) && (trend3 > 0) {
+		submitTelegram("BTC is rising, buying is started\n")
+		fmt.Println("BTC is rising, buying is started")
 		deleteParms("btcfall")
-        }
+	}
 }
 
-func writeSumAll(){
-        var sum float64
+func writeSumAll() {
+	var sum float64
 	var min float64 = 9999999
 	var valdate time.Time
 	var parmstr string
 	var docomma bool = false
 	var out string
 
-        fmt.Println("Write sum over all")
+	fmt.Println("Write sum over all")
 
-	f, err := os.Create(wwwpath+"/reports/sum_all.html")
+	f, err := os.Create(wwwpath + "/reports/sum_all.html")
 
 	if err != nil {
-        	panic(err)
+		panic(err)
 	}
 
 	defer f.Close()
 
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
 	select valdate,sum(sum) as sum from yoursum y 
 	group by valdate
 	order by valdate;`
 
-        rows, err := db.Query(sqlStatement)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-        defer rows.Close()
+	rows, err := db.Query(sqlStatement)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
+	defer rows.Close()
 
 	parmstr = ""
 
-        for rows.Next(){
-                if err := rows.Scan(&valdate, &sum); err != nil {
-                        fmt.Println(err)
-                }
-                if docomma {
-	                parmstr += ",\n"
-                }
+	for rows.Next() {
+		if err := rows.Scan(&valdate, &sum); err != nil {
+			fmt.Println(err)
+		}
+		if docomma {
+			parmstr += ",\n"
+		}
 		if sum < min {
 			min = sum
 		}
-		parmstr += "\n"+`['`+valdate.Format("2006-01-02")+`', ` + fmt.Sprintf("%.0f",sum) + "]\n"
+		parmstr += "\n" + `['` + valdate.Format("2006-01-02") + `', ` + fmt.Sprintf("%.0f", sum) + "]\n"
 		docomma = true
-        }
+	}
 
 	min -= 100
 
@@ -2593,12 +2592,12 @@ func writeSumAll(){
       google.charts.setOnLoadCallback(drawChart);
       function drawChart() {
         var data = google.visualization.arrayToDataTable([
-          ['Day', 'OverAll'],`+ parmstr + `
+          ['Day', 'OverAll'],` + parmstr + `
          ]);
         var options = {
           title: 'Over All Performance',
           hAxis: {title: 'Day',  titleTextStyle: {color: '#333'}},
-          vAxis: {minValue: ` + fmt.Sprintf("%.0f",min) +  `}
+          vAxis: {minValue: ` + fmt.Sprintf("%.0f", min) + `}
         };
         var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
         chart.draw(data, options);
@@ -2610,34 +2609,34 @@ func writeSumAll(){
   </body>
 </html>
  `
-        _, err = f.WriteString(out)
+	_, err = f.WriteString(out)
 }
 
 func writeDiff() {
-        var sum float64
+	var sum float64
 	var valdate time.Time
 	var parmstr string
 	var docomma bool = false
 	var out string
 
-        fmt.Println("Write difference")
+	fmt.Println("Write difference")
 
-	f, err := os.Create(wwwpath+"/reports/difference.html")
+	f, err := os.Create(wwwpath + "/reports/difference.html")
 
 	if err != nil {
-        	panic(err)
+		panic(err)
 	}
 
 	defer f.Close()
 
-        psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        db, err := sql.Open("postgres", psqlconn)
-        CheckError(err)
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
 
-        defer db.Close()
+	defer db.Close()
 
-        sqlStatement := `
+	sqlStatement := `
 	select v1, (sum1 - sum2) from
 	(select valdate as v1 ,sum(sum) as sum1 from yoursum 
 	group by valdate
@@ -2648,24 +2647,24 @@ func writeDiff() {
 	where v1 = v2 + interval '1 day'
 	order by v1;`
 
-        rows, err := db.Query(sqlStatement)
-        if err != nil {
-                fmt.Printf("SQL error: %v\n",err)
-        }
-        defer rows.Close()
+	rows, err := db.Query(sqlStatement)
+	if err != nil {
+		fmt.Printf("SQL error: %v\n", err)
+	}
+	defer rows.Close()
 
 	parmstr = ""
 
-        for rows.Next(){
-                if err := rows.Scan(&valdate, &sum); err != nil {
-                        fmt.Println(err)
-                }
-                if docomma {
-	                parmstr += ",\n"
-                }
-		parmstr += "\n"+`['`+valdate.Format("2006-01-02")+`', ` + fmt.Sprintf("%.0f",sum) + "]\n"
+	for rows.Next() {
+		if err := rows.Scan(&valdate, &sum); err != nil {
+			fmt.Println(err)
+		}
+		if docomma {
+			parmstr += ",\n"
+		}
+		parmstr += "\n" + `['` + valdate.Format("2006-01-02") + `', ` + fmt.Sprintf("%.0f", sum) + "]\n"
 		docomma = true
-        }
+	}
 
 	out = `
 <html>
@@ -2676,7 +2675,7 @@ func writeDiff() {
       google.charts.setOnLoadCallback(drawChart);
       function drawChart() {
         var data = google.visualization.arrayToDataTable([
-          ['Day', 'Difference'],`+ parmstr + `
+          ['Day', 'Difference'],` + parmstr + `
          ]);
         var options = {
           title: 'Difference',
@@ -2693,21 +2692,21 @@ func writeDiff() {
   </body>
 </html>
  `
-        _, err = f.WriteString(out)
+	_, err = f.WriteString(out)
 }
 
 func decreasePositionRates() {
 	if sell_days > 0 {
 		fmt.Println("Decrease position rates")
-		intv := fmt.Sprintf("'%d days'",sell_days)
-        	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+		intv := fmt.Sprintf("'%d days'", sell_days)
+		psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-        	db, err := sql.Open("postgres", psqlconn)
-        	CheckError(err)
+		db, err := sql.Open("postgres", psqlconn)
+		CheckError(err)
 
-        	defer db.Close()
+		defer db.Close()
 
-        	sqlStatement := `
+		sqlStatement := `
 		update yourposition
 		set timestamp = current_timestamp,
 		rate = rate * 0.9
@@ -2715,18 +2714,18 @@ func decreasePositionRates() {
 		and LOWER(exchange) = $1
 		and notrade = false;
 		`
-        	_, err = db.Exec(sqlStatement,exchange_name)
-        	if err != nil {
-                	fmt.Printf("SQL error: %v\n",err)
-        	}
+		_, err = db.Exec(sqlStatement, exchange_name)
+		if err != nil {
+			fmt.Printf("SQL error: %v\n", err)
+		}
 	}
 }
 
 func arrayContains(arr []string, str string) bool {
-        for _, a := range arr {
-           if a == str {
-              return true
-           }
-        }
-        return false
+	for _, a := range arr {
+		if a == str {
+			return true
+		}
+	}
+	return false
 }
