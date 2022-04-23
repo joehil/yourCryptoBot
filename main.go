@@ -25,7 +25,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"image/png"
-	"io/ioutil"
 	"math"
 	"os"
 	"os/exec"
@@ -36,7 +35,6 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	_ "github.com/lib/pq"
-	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/sajari/regression"
 	"github.com/spf13/viper"
@@ -391,7 +389,7 @@ func insertCandles(exchange string, pair string, interval string, timest time.Ti
         UPDATE yourcandle
         set open = $1, high = $2, low = $3, close = $4, volume = $5
         where exchange = $6 and pair = $7 and asset = $8 and interval = $9 and timestamp = $10`
-	info, err := db.Exec(sqlStatement, open, high, low, close, volume, exchange, pair, asset, interval, timest)
+	info, _ := db.Exec(sqlStatement, open, high, low, close, volume, exchange, pair, asset, interval, timest)
 	count, err := info.RowsAffected()
 	if err != nil {
 		panic(err)
@@ -454,7 +452,7 @@ func storeAccount(exchange string, currency string, amount float64) {
         UPDATE youraccount
 	set amount = $1
         where exchange = $2 and currency = $3`
-	info, err := db.Exec(sqlStatement, amount, exchange, currency)
+	info, _ := db.Exec(sqlStatement, amount, exchange, currency)
 	count, err := info.RowsAffected()
 	if err != nil {
 		panic(err)
@@ -987,7 +985,7 @@ func getBuyPriceNew(pair string) (price float64, amount float64, err error) {
 		}
 	}
 
-	if (current > limit) && (limit > 0) && (bullstrategy == true) && (trend1 > bulltrend) && (trend2 > bulltrend) && (lastcandle > 0) && isEnoughMoney() {
+	if (current > limit) && (limit > 0) && (bullstrategy) && (trend1 > bulltrend) && (trend2 > bulltrend) && (lastcandle > 0) && isEnoughMoney() {
 		fmt.Println("use bull strategy")
 		price = current * 1.005
 		amount = float64(invest_amount) / price
@@ -1039,7 +1037,7 @@ func getSellPrice(pair string) (price float64, amount float64, err error) {
 
 	winrate = rate * ((100 + float64(minwin)) / 100)
 
-	if bullstrategy == true {
+	if bullstrategy {
 		winrate = rate * ((100 + float64(bullwin)) / 100)
 	}
 
@@ -1142,7 +1140,7 @@ func sendTelegram() {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
-	updates, err := bot.GetUpdatesChan(u)
+	updates, _ := bot.GetUpdatesChan(u)
 
 	parms, err := getParms("ChatID")
 	if err == nil {
@@ -1150,7 +1148,7 @@ func sendTelegram() {
 		bot.Send(msg)
 	}
 
-	for true {
+	for {
 		mess = ""
 		line, err := reader.ReadBytes('\n')
 		if err == nil {
@@ -1912,13 +1910,13 @@ func genTotp() {
 	png.Encode(&buf, img)
 }
 
-func display(key *otp.Key, data []byte) {
-	fmt.Printf("Issuer:       %s\n", key.Issuer())
-	fmt.Printf("Account Name: %s\n", key.AccountName())
-	fmt.Printf("Secret:       %s\n", key.Secret())
-	fmt.Println("Writing PNG to qr-code.png....")
-	ioutil.WriteFile("/tmp/qr-code.png", data, 0644)
-}
+// func display(key *otp.Key, data []byte) {
+// 	fmt.Printf("Issuer:       %s\n", key.Issuer())
+// 	fmt.Printf("Account Name: %s\n", key.AccountName())
+// 	fmt.Printf("Secret:       %s\n", key.Secret())
+// 	fmt.Println("Writing PNG to qr-code.png....")
+// 	ioutil.WriteFile("/tmp/qr-code.png", data, 0644)
+// }
 
 func testTotp(passcode string) {
 	// Now Validate that the user's successfully added the passcode.
@@ -1978,7 +1976,7 @@ func writeChart(pair string) {
 [
 	`
 
-	_, err = f.WriteString(header)
+	_, _ = f.WriteString(header)
 
 	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
@@ -2004,7 +2002,7 @@ func writeChart(pair string) {
 		if err := rows.Scan(&tmstp, &value); err != nil {
 			fmt.Println(err)
 		}
-		_, err = f.WriteString(fmt.Sprintf("{x: '%s', y: %f},\n", tmstp.Format("2006-01-02T15:04:05"), value))
+		_, _ = f.WriteString(fmt.Sprintf("{x: '%s', y: %f},\n", tmstp.Format("2006-01-02T15:04:05"), value))
 	}
 
 	footer := `
@@ -2019,7 +2017,7 @@ func writeChart(pair string) {
 </body>
 </html>
         `
-	_, err = f.WriteString(footer)
+	_, _ = f.WriteString(footer)
 }
 
 func writeCharts() {
@@ -2034,42 +2032,42 @@ func processMinMax() {
 	}
 }
 
-func calculateProfit() {
-	var price float64
-	var amount float64
-	var side string
+// func calculateProfit() {
+// 	var price float64
+// 	var amount float64
+// 	var side string
 
-	fmt.Println("Calculate profit")
+// 	fmt.Println("Calculate profit")
 
-	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
+// 	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", "localhost", 5432, pguser, pgpassword, pgdb)
 
-	db, err := sql.Open("postgres", psqlconn)
-	CheckError(err)
+// 	db, err := sql.Open("postgres", psqlconn)
+// 	CheckError(err)
 
-	defer db.Close()
+// 	defer db.Close()
 
-	sqlStatement := `
-        select price, amount, side from yourorder
-        where LOWER(exchange) = $1
-	AND status = 'FILLED'
-        order by pair, "timestamp";`
+// 	sqlStatement := `
+//         select price, amount, side from yourorder
+//         where LOWER(exchange) = $1
+// 	AND status = 'FILLED'
+//         order by pair, "timestamp";`
 
-	rows, err := db.Query(sqlStatement, exchange_name)
-	if err != nil {
-		fmt.Printf("SQL error: %v\n", err)
-	}
-	defer rows.Close()
+// 	rows, err := db.Query(sqlStatement, exchange_name)
+// 	if err != nil {
+// 		fmt.Printf("SQL error: %v\n", err)
+// 	}
+// 	defer rows.Close()
 
-	//        var i int = 0;
-	for rows.Next() {
-		if err := rows.Scan(&price, &amount, &side); err != nil {
-			fmt.Println(err)
-		}
-	}
-	if err := rows.Err(); err != nil {
-		fmt.Println(err)
-	}
-}
+// 	//        var i int = 0;
+// 	for rows.Next() {
+// 		if err := rows.Scan(&price, &amount, &side); err != nil {
+// 			fmt.Println(err)
+// 		}
+// 	}
+// 	if err := rows.Err(); err != nil {
+// 		fmt.Println(err)
+// 	}
+// }
 
 func forceOrder(pair string, price string, passcode string) {
 	var newamount float64
@@ -2169,7 +2167,7 @@ func runTicker(pair string, side string, limitstr string, currentstr string, amo
 	level = limit + ((current - limit) / 2)
 
 	var i int64 = 0
-	for i < 860 && done == false {
+	for i < 860 && !done {
 		out, err := exec.Command(gctcmd, "getticker",
 			"--exchange", exchange_name, "--asset", "SPOT", "--pair", pair).Output()
 		if err != nil {
@@ -2302,42 +2300,42 @@ func getTransactionsAll() {
 	}
 }
 
-func getTransaction(pair string) {
-	var transactions []interface{}
-	out, err := exec.Command(gctcmd, "gettransactions",
-		"-e", exchange_name, "-a", "SPOT", "--pair", pair).Output()
-	if err != nil {
-		fmt.Printf("Command finished with error: %v", err)
-	}
-	//	fmt.Printf(string(out))
+// func getTransaction(pair string) {
+// 	var transactions []interface{}
+// 	out, err := exec.Command(gctcmd, "gettransactions",
+// 		"-e", exchange_name, "-a", "SPOT", "--pair", pair).Output()
+// 	if err != nil {
+// 		fmt.Printf("Command finished with error: %v", err)
+// 	}
+// 	//	fmt.Printf(string(out))
 
-	err = json.Unmarshal(out, &transactions)
-	if err != nil { // Handle JSON errors
-		fmt.Printf("JSON error: %v\n", err)
-		fmt.Printf("JSON input: %v\n", string(out))
-		return
-	}
+// 	err = json.Unmarshal(out, &transactions)
+// 	if err != nil { // Handle JSON errors
+// 		fmt.Printf("JSON error: %v\n", err)
+// 		fmt.Printf("JSON input: %v\n", string(out))
+// 		return
+// 	}
 
-	for _, transaction := range transactions {
-		trans := transaction.(map[string]interface{})
-		fmt.Println(trans)
-		if trans != nil {
-			fee := trans["fee"].(float64)
-			amount := trans["amount"].(float64)
-			amount_quote := trans["amount_quote"].(float64)
-			price := trans["price"].(float64)
-			timest := trans["timestamp"].(string)
-			id := trans["id"].(string)
-			storeTransactions(pair, amount, amount_quote, price, timest, fee, id)
-		}
-	}
-}
+// 	for _, transaction := range transactions {
+// 		trans := transaction.(map[string]interface{})
+// 		fmt.Println(trans)
+// 		if trans != nil {
+// 			fee := trans["fee"].(float64)
+// 			amount := trans["amount"].(float64)
+// 			amount_quote := trans["amount_quote"].(float64)
+// 			price := trans["price"].(float64)
+// 			timest := trans["timestamp"].(string)
+// 			id := trans["id"].(string)
+// 			storeTransactions(pair, amount, amount_quote, price, timest, fee, id)
+// 		}
+// 	}
+// }
 
-func getTransactions() {
-	for _, v := range tradepairs {
-		getTransaction(v)
-	}
-}
+// func getTransactions() {
+// 	for _, v := range tradepairs {
+// 		getTransaction(v)
+// 	}
+// }
 
 func writeReport() {
 	var sum float64
@@ -2449,7 +2447,7 @@ func writeReport() {
 </html>
 
  `
-	_, err = f.WriteString(out)
+	_, _ = f.WriteString(out)
 }
 
 func calculateSum() {
@@ -2517,12 +2515,12 @@ func btcReference() {
 		fmt.Printf("SQL error: %v\n", err)
 	}
 
-	if (btcf == false) && (((trend1 < -0.4) && (trend2 < -0.4) && (trend3 < -0.4)) || (trend1 < -2)) {
+	if (!btcf) && (((trend1 < -0.4) && (trend2 < -0.4) && (trend3 < -0.4)) || (trend1 < -2)) {
 		submitTelegram("BTC is falling, buying is paused\n")
 		fmt.Println("BTC is falling, buying is paused")
 		insertParms("btcfall", 1, float64(0), "", time.Now(), time.Now(), time.Now())
 	}
-	if (btcf == true) && (trend1 > 0) && (trend2 > 0) && (trend3 > 0) {
+	if (btcf) && (trend1 > 0) && (trend2 > 0) && (trend3 > 0) {
 		submitTelegram("BTC is rising, buying is started\n")
 		fmt.Println("BTC is rising, buying is started")
 		deleteParms("btcfall")
@@ -2609,7 +2607,7 @@ func writeSumAll() {
   </body>
 </html>
  `
-	_, err = f.WriteString(out)
+	_, _ = f.WriteString(out)
 }
 
 func writeDiff() {
@@ -2692,7 +2690,7 @@ func writeDiff() {
   </body>
 </html>
  `
-	_, err = f.WriteString(out)
+	_, _ = f.WriteString(out)
 }
 
 func decreasePositionRates() {
